@@ -4,21 +4,31 @@ grammar Javamm;
     package pt.up.fe.comp2026;
 }
 
-CLASS : 'class' ;
-INT : 'int' ;
-STATIC : 'static' ;
-RETURN : 'return' ;
+CLASS: 'class';
+INT: 'int';
+FLOAT: 'float';
+DOUBLE: 'double';
+STATIC: 'static';
+RETURN: 'return';
 PACKAGE: 'package';
 IMPORT: 'import';
 EXTENDS: 'extends';
 PUBLIC: 'public';
+PROTECTED: 'protected';
+PRIVATE: 'private';
+SWITCH: 'switch';
 IF: 'if';
 ELSE: 'else';
+DO: 'do';
 WHILE: 'while';
+FOR: 'for';
+BREAK: 'break';
+CONTINUE: 'continue';
+ENUM: 'enum';
 LENGTH: 'length';
 NEW: 'new';
+NULL: 'null';
 THIS: 'this';
-OBJECT: 'Object';
 
 INTEGER : '0' | [1-9][0-9]* ;
 BOOLEAN: 'false' | 'true';
@@ -47,15 +57,14 @@ packageDecl
 
 classDecl
     : CLASS name=ID
-        EXTENDS?
+        (EXTENDS ID)?
         '{'
-        varDecl*
-        methodDecl*
+        (varDecl | methodDecl)*
         '}'
     ;
 
 varDecl
-    : typeNode = type name=ID ';'
+    : typeNode = type name=ID ('=' expr)?';'
     ;
 
 param
@@ -72,7 +81,7 @@ type
 
 
 methodDecl locals[boolean isStatic=false]
-    : visibility=PUBLIC? (STATIC {$isStatic=true;})?
+    : visibility=(PUBLIC | PROTECTED | PRIVATE)? (STATIC {$isStatic=true;})?
         returnType = type name=ID
         '('
             (param(',' param)*)?
@@ -96,6 +105,7 @@ expr
     | expr op= ('&&' | '||') expr #BinaryExpr
     | expr '[' expr ']' #ArrayAcessExpr
     | expr '.' LENGTH #LengthExpr
+    | ID '(' (expr (',' expr)*)? ')' #FunctionCall
     | expr '.' ID '(' (expr (',' expr)*)? ')' #MethodCallExpr
     | NEW INT '[' expr ']' #NewArrayExpr
     | NEW ID '(' ')' #NewClassExpr
