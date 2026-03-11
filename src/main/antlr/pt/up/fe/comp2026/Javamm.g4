@@ -91,7 +91,8 @@ methodDecl locals[boolean isStatic=false]
 
 stmt
     : '{' stmt* '}' #BlockStmt
-    | IF '(' expr ')' stmt ELSE stmt #IfStmt
+    | IF '(' expr ')' stmt (ELSE stmt)? #IfStmt
+    | DO stmt WHILE '(' expr ')' stmt  #DoWhileStmt
     | WHILE '(' expr ')' stmt #WhileStmt
     | expr ';' #ExprStmt
     | var = ID ('[' expr ']')? '=' expr ';' #AssignStmt //
@@ -108,13 +109,13 @@ expr
     | ID '(' (expr (',' expr)*)? ')' #FunctionCall
     | expr '.' ID '(' (expr (',' expr)*)? ')' #MethodCallExpr
     | NEW INT '[' expr ']' #NewArrayExpr
-    | NEW ID '(' ')' #NewClassExpr
+    | NEW ID '(' (expr (',' expr)*)?  ')' #NewClassExpr
     | '!' expr #NegExpr
     | '(' expr ')' #ParentesesExpr
     | value=INTEGER #IntegerLiteral
     | value=BOOLEAN #BooleanLiteral
     | name=ID #VarRefExpr
-    | THIS #ThisExpr
+    | THIS '.' expr #ThisExpr
     ;
 
 
