@@ -92,30 +92,38 @@ methodDecl locals[boolean isStatic=false]
 stmt
     : '{' stmt* '}' #BlockStmt
     | IF '(' expr ')' stmt (ELSE stmt)? #IfStmt
-    | DO stmt WHILE '(' expr ')' stmt  #DoWhileStmt
+    | DO stmt WHILE '(' expr ')' stmt? ';'?  #DoWhileStmt
     | WHILE '(' expr ')' stmt #WhileStmt
     | expr ';' #ExprStmt
     | var = ID ('[' expr ']')? '=' expr ';' #AssignStmt //
     | RETURN expr? ';' #ReturnStmt
     ;
 
+args
+    : (expr (',' expr)*)?
+    ;
+
 expr
-    : expr op= ('*' | '/') expr #BinaryExpr //
+    : expr op= ('*' | '/' | '%' ) expr #BinaryExpr //
     | expr op= ('+' | '-') expr #BinaryExpr //
     | expr op= ('<' | '>' | '<=' | '>=' | '==' | '!=') expr #BinaryExpr
     | expr op= ('&&' | '||') expr #BinaryExpr
     | expr '[' expr ']' #ArrayAcessExpr
     | expr '.' LENGTH #LengthExpr
-    | ID '(' (expr (',' expr)*)? ')' #FunctionCall
-    | expr '.' ID '(' (expr (',' expr)*)? ')' #MethodCallExpr
+    | expr '.' ID '(' args ')' #MethodCallExpr
     | NEW INT '[' expr ']' #NewArrayExpr
-    | NEW ID '(' (expr (',' expr)*)?  ')' #NewClassExpr
+    | NEW ID '(' args ')' #NewClassExpr
     | '!' expr #NegExpr
     | '(' expr ')' #ParentesesExpr
     | value=INTEGER #IntegerLiteral
     | value=BOOLEAN #BooleanLiteral
+    | ID '(' args ')' #FunctionCall
+    | ID ('--' | '++') #UnaryExpr
     | name=ID #VarRefExpr
     | THIS '.' expr #ThisExpr
+    | ('--' | '++') ID #UnaryExpr
+    | '-' (ID | INTEGER) #UnaryExpr
+    | '+' (ID | INTEGER) #UnaryExpr
     ;
 
 
