@@ -95,7 +95,7 @@ stmt
     | DO stmt WHILE '(' expr ')'  ';'?  #DoWhileStmt
     | FOR '(' (var = ID ('[' expr ']')? '=' expr )? ';'? expr? ';' (var = ID ('[' expr ']')? '=' expr )? ')' stmt #ForStmt
     | WHILE '(' expr ')' stmt #WhileStmt
-    | var = ID ('[' expr ']')? '=' expr ';' #AssignStmt //
+    | var = ID ('[' expr ']')* '=' expr ';' #AssignStmt //
     | expr ';' #ExprStmt
     | RETURN expr? ';' #ReturnStmt
     ;
@@ -109,10 +109,11 @@ expr
     | expr op= ('+' | '-') expr #BinaryExpr //
     | expr op= ('<' | '>' | '<=' | '>=' | '==' | '!=') expr #BinaryExpr
     | expr op= ('&&' | '||') expr #BinaryExpr
-    | expr '[' expr? ']' #ArrayAcessExpr
+    | expr ('[' expr? ']')+   #ArrayAcessExpr
     | expr '.' LENGTH #LengthExpr
     | expr '.' ID '(' args ')' #MethodCallExpr
-    | NEW INT '[' expr ']' #NewArrayExpr
+    | NEW INT ('[' expr? ']')+ ('{' (expr(',' expr)*)? '}') #NewArrayExprOptSize
+    | NEW INT ('[' expr ']')+ ('{' (expr(',' expr)*)? '}')? #NewArrayExprOptInit
     | NEW ID '(' args ')' #NewClassExpr
     | '!' expr #NegExpr
     | '(' expr ')' #ParentesesExpr
