@@ -92,10 +92,11 @@ methodDecl locals[boolean isStatic=false]
 stmt
     : '{' stmt* '}' #BlockStmt
     | IF '(' expr ')' stmt (ELSE stmt)? #IfStmt
-    | DO stmt WHILE '(' expr ')' stmt? ';'?  #DoWhileStmt
+    | DO stmt WHILE '(' expr ')'  ';'?  #DoWhileStmt
+    | FOR '(' (var = ID ('[' expr ']')? '=' expr )? ';'? expr? ';' (var = ID ('[' expr ']')? '=' expr )? ')' stmt #ForStmt
     | WHILE '(' expr ')' stmt #WhileStmt
-    | expr ';' #ExprStmt
     | var = ID ('[' expr ']')? '=' expr ';' #AssignStmt //
+    | expr ';' #ExprStmt
     | RETURN expr? ';' #ReturnStmt
     ;
 
@@ -108,7 +109,7 @@ expr
     | expr op= ('+' | '-') expr #BinaryExpr //
     | expr op= ('<' | '>' | '<=' | '>=' | '==' | '!=') expr #BinaryExpr
     | expr op= ('&&' | '||') expr #BinaryExpr
-    | expr '[' expr ']' #ArrayAcessExpr
+    | expr '[' expr? ']' #ArrayAcessExpr
     | expr '.' LENGTH #LengthExpr
     | expr '.' ID '(' args ')' #MethodCallExpr
     | NEW INT '[' expr ']' #NewArrayExpr
