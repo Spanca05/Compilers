@@ -25,7 +25,6 @@ FOR: 'for';
 BREAK: 'break';
 CONTINUE: 'continue';
 ENUM: 'enum';
-LENGTH: 'length';
 NEW: 'new';
 NULL: 'null';
 THIS: 'this';
@@ -46,13 +45,12 @@ program
     :  packageDecl importDecl* classNode=classDecl EOF
     ;
 
-importDecl
-    : IMPORT ID.ID ('.' ID)* ';'
-    ;
-
-//package is mandatory
 packageDecl
     : PACKAGE path += ID ('.' path +=ID)* ';'
+    ;
+
+importDecl
+    : IMPORT ID.ID ('.' ID)* ';'
     ;
 
 classDecl
@@ -67,19 +65,6 @@ varDecl
     : typeNode = type name=ID ('=' expr)?';'
     ;
 
-param
-    : typeNode = type name=ID
-;
-
-type
-    : type '[' ']'
-    | name = INT
-    | name = BOOLEAN
-    | name = VOID
-    | name = ID
-    ;
-
-
 methodDecl locals[boolean isStatic=false]
     : visibility=(PUBLIC | PROTECTED | PRIVATE)? (STATIC {$isStatic=true;})?
         returnType = type name=ID
@@ -89,43 +74,54 @@ methodDecl locals[boolean isStatic=false]
         '{' varDecl* stmt* '}'
     ;
 
+param
+    : typeNode = type name=ID
+;
+
+type
+    : type '[' ']'
+    | name = BOOLEAN
+    | name = INT
+    | name = VOID
+    | name = ID
+    ;
+
 stmt
     : '{' stmt* '}' #BlockStmt
-    | IF '(' expr ')' stmt (ELSE stmt)? #IfStmt
-    | DO stmt WHILE '(' expr ')'  ';'?  #DoWhileStmt
+    | IF '(' expr ')' stmt (ELSE stmt)* #IfStmt
+    | DO stmt WHILE '(' expr ')'  ';'  #DoWhileStmt
     | FOR '(' (var = ID ('[' expr ']')? '=' expr )? ';'? expr? ';' (var = ID ('[' expr ']')? '=' expr )? ')' stmt #ForStmt
     | WHILE '(' expr ')' stmt #WhileStmt
-    | var = ID ('[' expr ']')* '=' expr ';' #AssignStmt //
     | expr ';' #ExprStmt
+    | var = ID ('[' expr ']')* '=' expr ';' #AssignStmt
+    | ID '[' expr ']' '=' expr ';' #ArrayStmt
     | RETURN expr? ';' #ReturnStmt
     ;
 
 args
-    : (expr (',' expr)*)?
+    : (expr (',' expr)*)
     ;
 
 expr
-    : expr op= ('*' | '/' | '%' ) expr #BinaryExpr //
-    | expr op= ('+' | '-') expr #BinaryExpr //
+    : expr op= ('*' | '/' | '%' ) expr #BinaryExpr
+    | expr op= ('+' | '-') expr #BinaryExpr
     | expr op= ('<' | '>' | '<=' | '>=' | '==' | '!=') expr #BinaryExpr
     | expr op= ('&&' | '||') expr #BinaryExpr
-    | expr ('[' expr? ']')+   #ArrayAcessExpr
-    | expr '.' LENGTH #LengthExpr
-    | expr '.' ID '(' args ')' #MethodCallExpr
-    | NEW INT ('[' expr? ']')+ ('{' (expr(',' expr)*)? '}') #NewArrayExprOptSize
-    | NEW INT ('[' expr ']')+ ('{' (expr(',' expr)*)? '}')? #NewArrayExprOptInit
-    | NEW ID '(' args ')' #NewClassExpr
+    | expr '[' expr ']'   #ArrayAcessExpr
+    | expr '.' 'length' #LengthExpr
+    | expr '.' ID ('(' args? ')')? #MethodCallExpr
+    | ID ('(' args? ')')?  #FunctionCall
+    | NEW INT '[' ']' '{' args? '}' #ArrayExpr //
+    | NEW INT ('[' expr ']')+ #ArrayExpr //
+    | NEW ID '(' args? ')' #NewClassExpr
     | '!' expr #NegExpr
     | '(' expr ')' #ParentesesExpr
     | value=INTEGER #IntegerLiteral
     | value=BOOLEAN #BooleanLiteral
-    | ID '(' args ')' #FunctionCall
-    | ID ('--' | '++') #UnaryExpr
     | name=ID #VarRefExpr
-    | THIS '.' expr #ThisExpr
-    | ('--' | '++') ID #UnaryExpr
-    | '-' (ID | INTEGER) #UnaryExpr
-    | '+' (ID | INTEGER) #UnaryExpr
+    | THIS #ThisExpr
+    | '+' '+'? expr #UnaryExpr
+    | '-' '-'? expr #UnaryExpr
     ;
 
 
