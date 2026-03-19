@@ -90,7 +90,7 @@ stmt
     : '{' stmt* '}' #BlockStmt
     | IF '(' expr ')' stmt (ELSE stmt)* #IfStmt
     | DO stmt WHILE '(' expr ')'  ';'  #DoWhileStmt
-    | FOR '(' (var = ID ('[' expr ']')? '=' expr )? ';'? expr? ';' (var = ID ('[' expr ']')? '=' expr )? ')' stmt #ForStmt
+    | FOR '(' (var = ID ('[' expr ']')? '=' expr )? ';' expr? ';' (var = ID ('[' expr ']')? '=' expr )? ')' stmt #ForStmt
     | WHILE '(' expr ')' stmt #WhileStmt
     | expr ';' #ExprStmt
     | var = ID ('[' expr ']')* '=' expr ';' #AssignStmt
@@ -120,8 +120,8 @@ expr
     | value=BOOLEAN #BooleanLiteral
     | name=ID #VarRefExpr
     | THIS #ThisExpr
-    | '+' '+'? expr #UnaryExpr
     | '-' '-'? expr #UnaryExpr
+    | '+' '+'? expr #UnaryExpr
     ;
 
 
