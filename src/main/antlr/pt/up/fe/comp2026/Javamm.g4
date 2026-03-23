@@ -46,11 +46,11 @@ program
     ;
 
 packageDecl
-    : PACKAGE path += ID ('.' path +=ID)* ';'
+    : PACKAGE path+= ID ('.' path+= ID)* ';'
     ;
 
 importDecl
-    : IMPORT ID.ID ('.' ID)* ';'
+    : IMPORT path+= ID.ID ('.' path+= ID)* ';'
     ;
 
 classDecl
@@ -67,7 +67,7 @@ varDecl
 
 methodDecl locals[boolean isStatic=false]
     : visibility=(PUBLIC | PROTECTED | PRIVATE)? (STATIC {$isStatic=true;})?
-        returnType = type name=ID
+        returnType= type name=ID
         '('
             (param(',' param)*)?
         ')'
