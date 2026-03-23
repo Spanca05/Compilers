@@ -4,16 +4,37 @@ grammar Javamm;
     package pt.up.fe.comp2026;
 }
 
-CLASS : 'class' ;
-INT : 'int' ;
-STATIC : 'static' ;
-RETURN : 'return' ;
+CLASS: 'class';
+INT: 'int';
+FLOAT: 'float';
+DOUBLE: 'double';
+STATIC: 'static';
+RETURN: 'return';
 PACKAGE: 'package';
 IMPORT: 'import';
+EXTENDS: 'extends';
 PUBLIC: 'public';
+PROTECTED: 'protected';
+PRIVATE: 'private';
+SWITCH: 'switch';
+IF: 'if';
+ELSE: 'else';
+DO: 'do';
+WHILE: 'while';
+FOR: 'for';
+BREAK: 'break';
+CONTINUE: 'continue';
+ENUM: 'enum';
+NEW: 'new';
+NULL: 'null';
+THIS: 'this';
 
 INTEGER : '0' | [1-9][0-9]* ;
-ID : [a-zA-Z]+ ;
+BOOLEAN: 'false' | 'true';
+VOID: 'void';
+
+ID: [a-zA-Z$_][a-zA-Z0-9$_]* ;
+
 
 WS : [ \t\n\r\f]+ -> skip ;
 
@@ -21,27 +42,36 @@ SINGLE_COMMENT: '//' ~[\r\n]*-> skip;
 BLOCK_COMMENT : '/*' .*? '*/' -> skip;
 
 program
-    : importDecl? packageDecl classNode=classDecl EOF
+    :  packageDecl importDecl* classNode=classDecl EOF
     ;
 
-importDecl:
-    IMPORT ID ';'
-;
-
-//package is mandatory
 packageDecl
     : PACKAGE path += ID ('.' path +=ID)* ';'
     ;
 
+importDecl
+    : IMPORT ID.ID ('.' ID)* ';'
+    ;
+
 classDecl
     : CLASS name=ID
+        (EXTENDS ID)?
         '{'
-        methodDecl
+        (varDecl | methodDecl)*
         '}'
     ;
 
 varDecl
-    : typeNode = type name=ID ';'
+    : typeNode = type name=ID ('=' expr)?';'
+    ;
+
+methodDecl locals[boolean isStatic=false]
+    : visibility=(PUBLIC | PROTECTED | PRIVATE)? (STATIC {$isStatic=true;})?
+        returnType = type name=ID
+        '('
+            (param(',' param)*)?
+        ')'
+        '{' varDecl* stmt* '}'
     ;
 
 param
@@ -49,25 +79,49 @@ param
 ;
 
 type
-    : name = INT;
-
-methodDecl locals[boolean isStatic=false]
-    : visibility=PUBLIC (STATIC {$isStatic=true;})?
-        returnType = type name=ID
-        '(' params = param  ')'
-        '{' varDecl* stmt* '}'
+    : type '[' ']'
+    | name = BOOLEAN
+    | name = INT
+    | name = VOID
+    | name = ID
     ;
 
 stmt
-    : var = ID '=' expr ';' #AssignStmt //
-    | RETURN expr ';' #ReturnStmt
+    : '{' stmt* '}' #BlockStmt
+    | IF '(' expr ')' stmt (ELSE stmt)* #IfStmt
+    | DO stmt WHILE '(' expr ')'  ';'  #DoWhileStmt
+    | FOR '(' (var = ID ('[' expr ']')? '=' expr )? ';' expr? ';' (var = ID ('[' expr ']')? '=' expr )? ')' stmt #ForStmt
+    | WHILE '(' expr ')' stmt #WhileStmt
+    | expr ';' #ExprStmt
+    | var = ID ('[' expr ']')* '=' expr ';' #AssignStmt
+    | ID '[' expr ']' '=' expr ';' #ArrayStmt
+    | RETURN expr? ';' #ReturnStmt
+    ;
+
+args
+    : (expr (',' expr)*)
     ;
 
 expr
-    : expr op= '*' expr #BinaryExpr //
-    | expr op= '+' expr #BinaryExpr //
-    | value=INTEGER #IntegerLiteral //
-    | name=ID #VarRefExpr //
+    : expr op= ('*' | '/' | '%' ) expr #BinaryExpr
+    | expr op= ('+' | '-') expr #BinaryExpr
+    | expr op= ('<' | '>' | '<=' | '>=' | '==' | '!=') expr #BinaryExpr
+    | expr op= ('&&' | '||') expr #BinaryExpr
+    | expr '[' expr ']'   #ArrayAcessExpr
+    | expr '.' 'length' #LengthExpr
+    | expr '.' ID ('(' args? ')')? #MethodCallExpr
+    | ID ('(' args? ')')?  #FunctionCall
+    | NEW INT '[' ']' '{' args? '}' #ArrayExpr //
+    | NEW INT ('[' expr ']')+ #ArrayExpr //
+    | NEW ID '(' args? ')' #NewClassExpr
+    | '!' expr #NegExpr
+    | '(' expr ')' #ParentesesExpr
+    | value=INTEGER #IntegerLiteral
+    | value=BOOLEAN #BooleanLiteral
+    | name=ID #VarRefExpr
+    | THIS #ThisExpr
+    | '-' '-'? expr #UnaryExpr
+    | '+' '+'? expr #UnaryExpr
     ;
 
 
