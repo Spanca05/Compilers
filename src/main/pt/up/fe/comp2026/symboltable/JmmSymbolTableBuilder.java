@@ -99,9 +99,10 @@ public class JmmSymbolTableBuilder {
             imports.add(fullImport);
         }
 
+        var fields = buildFields(classDecl);
         var methods = buildMethods(classDecl);
 
-        var symbolTable = new JmmSymbolTable(imports, fullyQualifiedName, null, Collections.emptyList(), methods, importer);
+        var symbolTable = new JmmSymbolTable(imports, fullyQualifiedName, null, fields, methods, importer);
 
         return new SymbolTableBuilderResult(symbolTable, reports);
     }
@@ -121,8 +122,12 @@ public class JmmSymbolTableBuilder {
         var returnType = TypeUtils.intType();
 
 
-        var params = List.of(new Symbol(TypeUtils.intType(), method.getChildren(PARAM).getFirst().get(JmmAttributes.PARAM.NAME)));
-
+        var params = method.getChildren(PARAM).stream()
+                        .map(param -> new Symbol(
+                                TypeUtils.intType(),
+                                param.get(JmmAttributes.PARAM.NAME)
+                        )).toList();
+            
         System.out.println("[TODO] JmmSymbolTableBuilder.buildMethod(): Assuming all VarDecls are ints, needs to be expanded");
         var locals = method.getChildren(VAR_DECL).stream()
                 .map(varDecl -> new Symbol(TypeUtils.intType(), varDecl.get(JmmAttributes.VAR_DECL.NAME)))
@@ -131,6 +136,48 @@ public class JmmSymbolTableBuilder {
         var visibility =  Visibility.PUBLIC;
         var isStatic = method.getBoolean(JmmAttributes.METHOD_DECL.IS_STATIC, false);
         return new MethodSymbol(methodName, returnType, params, locals, isStatic, visibility);
+    }
+
+    private List<Symbol> buildFields(JmmNode classDecl) {
+        return classDecl.getChildren(VAR_DECL).stream()
+                .map(this::buildField)
+                .toList();
+    }
+
+    private Symbol buildField(JmmNode field) {
+        var fieldName = field.get(JmmAttributes.VAR_DECL.NAME);
+        var typeNode = field.getObject(JmmAttributes.VAR_DECL.TYPE_NODE, JmmNode.class);
+        var fieldType = buildType(typeNode);
+
+        return new Symbol(fieldType, fieldName);
+    }
+
+    private JmmType buildType(JmmNode typeNode) {
+        // Caso base: tipo simples
+        if (typeNode.getAttributes().contains("name")) {
+            var typeName = typeNode.get("name");
+            var primitiveType = JmmPrimitiveType.fromString(typeName);
+
+            if (primitiveType.isPresent()) {
+                return primitiveType.get();
+            }
+
+            // Classe (Assumimos não importada e não static por agora)
+            return new JmmClassType(typeName, false, false);
+        }
+
+        // Caso array
+        var innerTypeNode = typeNode.getChildren(TYPE).getFirst();
+        var innerType = buildType(innerTypeNode);
+
+        if (innerType instanceof JmmArrayType arrayType) {
+            return new JmmArrayType(
+                    arrayType.itemType(),
+                    arrayType.dimension() + 1
+            );
+        }
+
+        return new JmmArrayType(innerType, 1);
     }
 
 
