@@ -1,18 +1,57 @@
-/bin/
-.gradle/
-.idea/
+# Build output
 /build/
-/.settings/
+/bin/
+/bundle/
+
+# Gradle
+.gradle/
+gradle.properties
+
+# Generated sources (ANTLR, AST kinds)
+/generated-src/
 /generated/
-/run/
-gradle*
-generated-src/
-# Class files
+
+# ANTLR VS Code extension intermediates
+**/.antlr/
+
+# Compiled classes (keep pre-compiled libs-jmm)
 **/*.class
 !libs-jmm/**/*.class
 
-# debug files
+# Compiler debug output files
 output.ollir
 output.jasmin
 output.j
+*.ollir
+*.jasmin
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.settings/
+.classpath
+.project
+.factorypath
+
+# VS Code
+.vscode/
+
+# macOS
 .DS_Store
+**/.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Linux
+*~
+
+# Logs
+*.log
+/run/
