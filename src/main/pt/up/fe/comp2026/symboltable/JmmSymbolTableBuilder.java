@@ -89,7 +89,9 @@ public class JmmSymbolTableBuilder {
             if (imports.contains(fullImport)) {
                 continue;
             }
-            
+            if (importer.getSymbolTableOf(fullImport).isEmpty()){
+                reports.add(newError(importDecl, "Class '" + fullImport + "' does not exist."));
+            }
             var importName = importPathList.getLast();
             importPathList.removeLast();
             var importPath = String.join(".", importPathList);
@@ -108,7 +110,7 @@ public class JmmSymbolTableBuilder {
                 ? nameToPath.getOrDefault(superClassName, "") + "." + superClassName
                 : null;
 
-        if (superClassName != null && !nameToPath.containsKey(superClassName) && !superClassName.equals(className)) {
+        if (superClassName != null && !nameToPath.containsKey(superClassName) && !superClassName.equals(className) && !importer.isImplicitImport(superClassName)) {
             reports.add(newError(classDecl, "Class '" + superClassName + "' is not imported."));
         }
 
