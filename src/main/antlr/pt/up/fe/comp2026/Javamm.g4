@@ -50,12 +50,12 @@ packageDecl
     ;
 
 importDecl
-    : IMPORT path+= ID.ID ('.' path+= ID)* ';'
+    : IMPORT path+= ID ('.' path+= ID)* ';'
     ;
 
 classDecl
     : CLASS name=ID
-        (EXTENDS ID)?
+        (EXTENDS superclass=ID)?
         '{'
         (varDecl | methodDecl)*
         '}'
@@ -113,7 +113,7 @@ expr
     | ID ('(' args? ')')?  #FunctionCall
     | NEW INT '[' ']' '{' args? '}' #ArrayExpr //
     | NEW INT ('[' expr ']')+ #ArrayExpr //
-    | NEW ID '(' args? ')' #NewClassExpr
+    | NEW name=ID '(' args? ')' #NewClassExpr
     | '!' expr #NegExpr
     | '(' expr ')' #ParentesesExpr
     | value=INTEGER #IntegerLiteral

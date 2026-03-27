@@ -29,7 +29,7 @@ public class JmmAnalysisImpl implements JmmAnalysis {
         return List.of(
                 // TODO: Add your analysis passes here
                 new UndeclaredVariable()
-
+                //new ImportValidation()
         );
     }
 
@@ -39,7 +39,6 @@ public class JmmAnalysisImpl implements JmmAnalysis {
         var symbolTableBuilderResults = JmmSymbolTableBuilder.build(rootNode);
 
         SymbolTable table = symbolTableBuilderResults.table();
-        System.out.println(table.getImports());
 
         List<Report> reports = symbolTableBuilderResults.reports();
         //System.out.println(reports);

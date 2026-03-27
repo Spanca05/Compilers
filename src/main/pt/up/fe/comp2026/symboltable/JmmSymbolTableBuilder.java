@@ -28,9 +28,12 @@ public class JmmSymbolTableBuilder {
     private final JmmNode root;
     private final Importer importer;
     public String className;
+    public String superClassName;
     private final List<Report> reports;
     private final List<String> imports;
     private final Map<String, String> declaredClasses;
+
+    private Map<String, String> nameToPath = new HashMap<>();
 
     /**
      * Only build() can create new instances, this ensures that each instance is used only once,
@@ -68,15 +71,15 @@ public class JmmSymbolTableBuilder {
         SpecsCheck.checkArgument(CLASS_DECL.check(classDecl), () -> "Expected a class declaration: " + classDecl);
 
         this.className = classDecl.get("name");
+        this.superClassName = classDecl.hasAttribute("superclass") ? classDecl.get("superclass") : null;
         var fullyQualifiedName = packagePath + "." + className;
-
         // Check if className is available
         if (declaredClasses.containsKey(className)) {
             reports.add(newError(root, "'" + className + "' is already defined in this compilation unit"));
         }
         declaredClasses.put(className, fullyQualifiedName);
 
-        var nameToPath = new HashMap<String, String>();
+        nameToPath = new HashMap<String, String>();
         var importDecls = root.getChildren(IMPORT_DECL);
 
         for (var importDecl: importDecls) {
@@ -100,12 +103,18 @@ public class JmmSymbolTableBuilder {
             nameToPath.put(importName, importPath);
             imports.add(fullImport);
         }
+        // get superclass fully qualified name
+        var superFullyQualified = superClassName != null
+                ? nameToPath.getOrDefault(superClassName, "") + "." + superClassName
+                : null;
+
+        if (superClassName != null && !nameToPath.containsKey(superClassName) && !superClassName.equals(className)) {
+            reports.add(newError(classDecl, "Class '" + superClassName + "' is not imported."));
+        }
 
         var fields = buildFields(classDecl);
         var methods = buildMethods(classDecl);
-
-        var symbolTable = new JmmSymbolTable(imports, fullyQualifiedName, null, fields, methods, importer);
-
+        var symbolTable = new JmmSymbolTable(imports, fullyQualifiedName, superFullyQualified, fields, methods, importer);
         return new SymbolTableBuilderResult(symbolTable, reports);
     }
 
@@ -165,8 +174,13 @@ public class JmmSymbolTableBuilder {
                 return primitiveType.get();
             }
 
+            var fullyQualified = nameToPath.containsKey(typeName)
+                    ? nameToPath.get(typeName) + "." + typeName
+                    : typeName;
+            var isImported = nameToPath.containsKey(typeName);
+            System.out.println(fullyQualified);
             // Classe (Assumimos não importada e não static por agora)
-            return new JmmClassType(typeName, false, false);
+            return new JmmClassType(fullyQualified, isImported, false);
         }
 
         // Caso array

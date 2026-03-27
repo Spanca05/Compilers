@@ -55,7 +55,10 @@ public class TypeUtils {
             if (primitive.isPresent())
                 return primitive.get();
 
-            return new JmmClassType(typeName, false, false);
+            var fullyQualified = table.getImportedFullyQualifiedName(typeName);
+            var resolvedName = fullyQualified.orElse(typeName);
+            System.out.println(resolvedName);
+            return new JmmClassType(resolvedName, false, false);
         }
 
         // Array case

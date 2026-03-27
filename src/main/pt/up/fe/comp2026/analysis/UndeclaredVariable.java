@@ -21,6 +21,7 @@ public class UndeclaredVariable extends AnalysisVisitor {
     private Void visitMethodDecl(JmmNode method, SymbolTable table) {
         var signature = TypeUtils.with(table).getMethodDeclSignature(method);
         //System.out.println(signature);
+
         currentMethod = table.getMethod(signature).orElseThrow();
         return null;
     }
