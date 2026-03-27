@@ -133,19 +133,35 @@ public class JmmSymbolTableBuilder {
         var returnTypeNode = method.getChild(0);
         var returnType = buildType(returnTypeNode);
 
-        var params = method.getChildren(PARAM).stream()
-                .map(param -> {
-                    var typeNode = param.getObject(JmmAttributes.PARAM.TYPE_NODE, JmmNode.class);
-                    var type = buildType((typeNode));
-                    return new Symbol(type, param.get(JmmAttributes.PARAM.NAME));
-                }).toList();
+        // get Parameters, check for duplicates
+        var paramNames = new HashSet<String>();
+        var params = new ArrayList<Symbol>();
+        for (var param : method.getChildren(PARAM)){
+            var name = param.get(JmmAttributes.PARAM.NAME);
+            if (!paramNames.add(name)) {
+                reports.add(newError(param, "Parameter '" + name + "' is duplicated"));
+                continue;
+            }
+            var typeNode = param.getObject(JmmAttributes.PARAM.TYPE_NODE,JmmNode.class);
+            params.add(new Symbol(buildType(typeNode),name));
+        }
+
+        var localNames = new HashSet<>(paramNames);
+        var locals = new ArrayList<Symbol>();
+        for (var varDecl : method.getChildren(VAR_DECL)){
+            var name = varDecl.get(JmmAttributes.VAR_DECL.NAME);
+            if (!localNames.add(name)) {
+                reports.add(newError(varDecl, "A variable with " + name + " already exists."));
+                continue;
+            }
+            locals.add(buildField(varDecl));
+        }
 
         // System.out.println("[TODO] JmmSymbolTableBuilder.buildMethod(): Assuming all VarDecls are ints, needs to be expanded");
-        var locals = method.getChildren(VAR_DECL).stream()
-                .map(this::buildField
-                ).toList();
 
-        var visibility =  Visibility.PUBLIC;
+        var visibility = method.hasAttribute("visibility")
+                ? Visibility.fromString(method.get("visibility"))
+                : Visibility.PACKAGE_PROTECTED;
         var isStatic = method.getBoolean(JmmAttributes.METHOD_DECL.IS_STATIC, false);
         return new MethodSymbol(methodName, returnType, params, locals, isStatic, visibility);
     }
