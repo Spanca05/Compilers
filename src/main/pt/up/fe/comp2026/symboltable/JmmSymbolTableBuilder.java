@@ -173,14 +173,15 @@ public class JmmSymbolTableBuilder {
             if (primitiveType.isPresent()) {
                 return primitiveType.get();
             }
+            if (typeName.equals(className))
+                return new JmmClassType(declaredClasses.get(className),false,false);
 
-            var fullyQualified = nameToPath.containsKey(typeName)
-                    ? nameToPath.get(typeName) + "." + typeName
-                    : typeName;
             var isImported = nameToPath.containsKey(typeName);
-            System.out.println(fullyQualified);
+            var resolvedName = isImported ? nameToPath.get(typeName) + "." + typeName : typeName;
+
+            System.out.println(resolvedName);
             // Classe (Assumimos não importada e não static por agora)
-            return new JmmClassType(fullyQualified, isImported, false);
+            return new JmmClassType(resolvedName, isImported, false);
         }
 
         // Caso array
