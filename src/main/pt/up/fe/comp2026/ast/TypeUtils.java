@@ -42,11 +42,14 @@ public class TypeUtils {
         return JmmPrimitiveType.INT;
     }
 
+    public static JmmPrimitiveType booleanType() {
+        return JmmPrimitiveType.BOOLEAN;
+    }
+
     public JmmType convertType(JmmNode typeNode) {
         assert (TYPE.check(typeNode));
 
         //System.out.println("[TODO] TypeUtils.convertType(): Implement for classes and arrays");
-        var name = typeNode.get("name");
 
         if (typeNode.getAttributes().contains("name")) {
             var typeName = typeNode.get("name");
@@ -69,7 +72,7 @@ public class TypeUtils {
             return new JmmArrayType(arrayType.itemType(), arrayType.dimension() + 1);
         }
 
-        return JmmPrimitiveType.fromString(name).orElseThrow();
+        return new JmmArrayType(innerType, 1);
     }
 
 
@@ -84,6 +87,7 @@ public class TypeUtils {
             case INTEGER_LITERAL -> intType();
             case BINARY_EXPR -> getBinExprType(expr);
             case VAR_REF_EXPR -> getVarExprType(expr);
+            case BOOLEAN_LITERAL -> booleanType();
             default ->
                     throw new UnsupportedOperationException("Can't compute type for expression kind '" + expr.getKind() + "'");
         };
@@ -112,7 +116,8 @@ public class TypeUtils {
         String operator = binaryExpr.get("op");
 
         return switch (operator) {
-            case "+", "*" -> intType();
+            case "+", "*", "-", "/", "%" -> intType();
+            case "<", ">", "<=", ">=", "==", "!=", "&&", "||" -> booleanType();
             default ->
                     throw new RuntimeException("Unknown operator '" + operator + "' of expression '" + binaryExpr + "'");
         };

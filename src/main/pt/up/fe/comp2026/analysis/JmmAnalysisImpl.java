@@ -29,7 +29,8 @@ public class JmmAnalysisImpl implements JmmAnalysis {
         return List.of(
                 // TODO: Add your analysis passes here
                 new UndeclaredVariable(),
-                new ClassDeclaration()
+                new ClassDeclaration(),
+                new StatementsSemantics()
         );
     }
 

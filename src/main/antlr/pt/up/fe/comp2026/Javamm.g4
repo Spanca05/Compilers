@@ -110,7 +110,7 @@ expr
     | expr '[' expr ']'   #ArrayAcessExpr
     | expr '.' 'length' #LengthExpr
     | expr '.' ID ('(' args? ')')? #MethodCallExpr
-    | ID ('(' args? ')')?  #FunctionCall
+    | ID '(' args? ')'  #FunctionCall
     | NEW INT '[' ']' '{' args? '}' #ArrayExpr //
     | NEW INT ('[' expr ']')+ #ArrayExpr //
     | NEW name=ID '(' args? ')' #NewClassExpr
