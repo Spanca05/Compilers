@@ -114,7 +114,7 @@ public class StatementsSemantics extends AnalysisVisitor {
         var expr = returnStmt.getChild(0);
         var exprType = TypeUtils.with(table).getExprType(expr);
 
-        if (exprType != returnType) {
+        if (!returnType.equals(exprType)) {
             var message = String.format("Return type must be '%s' and not '%s'", returnType, exprType);
             addReport(Report.newError(
                     Stage.SEMANTIC,

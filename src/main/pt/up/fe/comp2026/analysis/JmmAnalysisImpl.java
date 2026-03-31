@@ -30,7 +30,8 @@ public class JmmAnalysisImpl implements JmmAnalysis {
                 // TODO: Add your analysis passes here
                 new UndeclaredVariable(),
                 new ClassDeclaration(),
-                new StatementsSemantics()
+                new StatementsSemantics(),
+                new CallsSemantics()
         );
     }
 

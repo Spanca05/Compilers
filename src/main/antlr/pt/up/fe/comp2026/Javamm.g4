@@ -109,8 +109,8 @@ expr
     | expr op= ('&&' | '||') expr #BinaryExpr
     | expr '[' expr ']'   #ArrayAcessExpr
     | expr '.' 'length' #LengthExpr
-    | expr '.' ID ('(' args? ')')? #MethodCallExpr
-    | ID '(' args? ')'  #FunctionCall
+    | expr '.' name=ID ('(' args? ')')? #MethodCallExpr
+    | name=ID '(' args? ')'  #FunctionCall
     | NEW INT '[' ']' '{' args? '}' #ArrayExpr //
     | NEW INT ('[' expr ']')+ #ArrayExpr //
     | NEW name=ID '(' args? ')' #NewClassExpr

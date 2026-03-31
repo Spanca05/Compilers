@@ -88,6 +88,7 @@ public class TypeUtils {
             case BINARY_EXPR -> getBinExprType(expr);
             case VAR_REF_EXPR -> getVarExprType(expr);
             case BOOLEAN_LITERAL -> booleanType();
+            case NEW_CLASS_EXPR -> getNewClassExprType(expr);
             default ->
                     throw new UnsupportedOperationException("Can't compute type for expression kind '" + expr.getKind() + "'");
         };
@@ -143,6 +144,30 @@ public class TypeUtils {
                 .findFirst();
         return field.map(Symbol::type).orElse(null);
 
+    }
+
+    private JmmType getNewClassExprType(JmmNode newClassExpr) {
+        var className = newClassExpr.get("name");
+
+        // Classe atual
+        if (className.equals(table.getClassName())) {
+            return new JmmClassType(table.getFullyQualifiedName(), false, false);
+        }
+
+        // Import explícito
+        var importFq = table.getImportedFullyQualifiedName(className);
+
+        if (importFq.isPresent()) {
+            return new JmmClassType(importFq.get(), true, false);
+        }
+
+        // Import implícito
+        if (table instanceof JmmSymbolTable jmmTable && jmmTable.isImplicitImport(className)) {
+            return new JmmClassType(className, true, false);
+        }
+
+        // Fallback
+        return new JmmClassType(className, false, false);
     }
 
 }
