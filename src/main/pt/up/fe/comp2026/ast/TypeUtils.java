@@ -58,10 +58,14 @@ public class TypeUtils {
             if (primitive.isPresent())
                 return primitive.get();
 
+            if (typeName.equals(table.getClassName())) {
+                return new JmmClassType(table.getFullyQualifiedName(), false, false);
+            }
+
             var fullyQualified = table.getImportedFullyQualifiedName(typeName);
             var resolvedName = fullyQualified.orElse(typeName);
-            System.out.println(resolvedName);
-            return new JmmClassType(resolvedName, false, false);
+            var isImported = fullyQualified.isPresent();
+            return new JmmClassType(resolvedName, isImported, false);
         }
 
         // Array case
@@ -88,7 +92,9 @@ public class TypeUtils {
             case BINARY_EXPR -> getBinExprType(expr);
             case VAR_REF_EXPR -> getVarExprType(expr);
             case BOOLEAN_LITERAL -> booleanType();
+            case ARRAY_EXPR -> getArrayExprType(expr);
             case NEW_CLASS_EXPR -> getNewClassExprType(expr);
+            case METHOD_CALL_EXPR -> getMethodCallExprType(expr);
             default ->
                     throw new UnsupportedOperationException("Can't compute type for expression kind '" + expr.getKind() + "'");
         };
@@ -163,11 +169,118 @@ public class TypeUtils {
 
         // Import implícito
         if (table instanceof JmmSymbolTable jmmTable && jmmTable.isImplicitImport(className)) {
-            return new JmmClassType(className, true, false);
+            return new JmmClassType(className, false, false);
         }
 
         // Fallback
         return new JmmClassType(className, false, false);
     }
 
+    private JmmType getMethodCallExprType(JmmNode methodCallExpr) {
+        var methodName = methodCallExpr.get(JmmAttributes.METHOD_CALL_EXPR.NAME);
+
+        var argTypes = getArgTypes(methodCallExpr);
+
+        var signature = new Signature(methodName, argTypes);
+
+        var receiver = methodCallExpr.getChild(0);
+
+        if (JmmKind.THIS_EXPR.check(receiver)) {
+            var maybeMethod = getMethodFromCurrentOrSuper(signature);
+
+            if (maybeMethod.isPresent()) return maybeMethod.get().returnType();
+
+            return null;
+        }
+
+        var receiverType = getExprType(receiver);
+
+        var targetTable = resolveTableFromReceiverType(receiverType);
+
+        if (targetTable.isEmpty()) return null;
+
+        var maybeMethod = targetTable.get().getMethod(signature);
+
+        if (maybeMethod.isPresent()) return normalizeImplicitClassType(maybeMethod.get().returnType());
+
+        return null;
+    }
+
+    private JmmType getArrayExprType(JmmNode arrayExpr) {
+        long dimensions = arrayExpr.getChildren().stream()
+                .filter(child -> !JmmKind.ARGS.check(child))
+                .count();
+
+        var dim = (int) Math.max(1, dimensions);
+        return new JmmArrayType(JmmPrimitiveType.INT, dim);
+    }
+
+    private JmmType normalizeImplicitClassType(JmmType type) {
+        if (!(type instanceof JmmClassType classType)) {
+            return type;
+        }
+
+        var fqName = classType.fullyQualifiedName();
+        var simpleName = fqName.substring(fqName.lastIndexOf('.') + 1);
+
+        if (!table.isImplicitImport(simpleName)) {
+            return type;
+        }
+
+        return new JmmClassType(simpleName, false, classType.staticRef());
+    }
+
+    private List<JmmType> getArgTypes(JmmNode callNode) {
+        var argsNodes = callNode.getChildren(JmmKind.ARGS);
+        if (argsNodes.isEmpty()) {
+            return List.of();
+        }
+
+        return argsNodes.getFirst().getChildren().stream()
+                .map(this::getExprType)
+                .toList();
+    }
+
+    private Optional<MethodSymbol> getMethodFromCurrentOrSuper(Signature signature) {
+        var current = table.getMethod(signature);
+        if (current.isPresent()) {
+            return current;
+        }
+
+        var superName = table.getSuper();
+        if (superName == null) {
+            return Optional.empty();
+        }
+
+        var maybeSuperTable = table.getImportedSymbolTable(superName);
+        if (maybeSuperTable.isEmpty()) {
+            var simpleSuper = superName.substring(superName.lastIndexOf('.') + 1);
+            maybeSuperTable = table.getImplicitImport(simpleSuper);
+        }
+
+        if (maybeSuperTable.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return maybeSuperTable.get().getMethod(signature);
+    }
+
+    private Optional<SymbolTable> resolveTableFromReceiverType(JmmType receiverType) {
+        if (!(receiverType instanceof JmmClassType classType)) return Optional.empty();
+
+        var fqName = classType.fullyQualifiedName();
+        var simpleName = fqName.substring(fqName.lastIndexOf('.') + 1);
+
+        if (simpleName.equals(table.getClassName()) || fqName.equals(table.getFullyQualifiedName())) {
+            return Optional.of(table);
+        }
+
+        var imported = table.getImportedSymbolTable(fqName);
+        if (imported.isPresent()) return imported;
+
+        imported = table.getImportedSymbolTable(simpleName);
+        if (imported.isPresent()) return imported;
+
+        return table.getImplicitImport(simpleName);
+    }
 }

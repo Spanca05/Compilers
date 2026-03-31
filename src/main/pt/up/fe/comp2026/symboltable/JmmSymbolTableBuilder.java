@@ -196,8 +196,6 @@ public class JmmSymbolTableBuilder {
 
             var isImported = nameToPath.containsKey(typeName);
             var resolvedName = isImported ? nameToPath.get(typeName) + "." + typeName : typeName;
-
-            System.out.println(resolvedName);
             // Classe (Assumimos não importada e não static por agora)
             return new JmmClassType(resolvedName, isImported, false);
         }
