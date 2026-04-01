@@ -31,10 +31,22 @@ public class UndeclaredVariable extends AnalysisVisitor {
 
         if (currentMethod.getParameter(varRefName).isPresent())
             return null;
+
         if (currentMethod.getLocalVariable(varRefName).isPresent())
             return null;
+
+        if(table.getField(varRefName).isPresent())
+            return null;
+
         var message = String.format("Variable '%s' does not exist.", varRefName);
-        addReport(Report.newError(Stage.SEMANTIC, NodeUtils.getLine(varRefExpr), NodeUtils.getColumn((varRefExpr)),message,null));
+        addReport(Report.newError(
+                Stage.SEMANTIC,
+                NodeUtils.getLine(varRefExpr),
+                NodeUtils.getColumn((varRefExpr)),
+                message,
+                null
+        ));
+
         return null;
     }
 }

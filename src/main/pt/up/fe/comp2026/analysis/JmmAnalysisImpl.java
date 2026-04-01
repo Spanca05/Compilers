@@ -31,7 +31,8 @@ public class JmmAnalysisImpl implements JmmAnalysis {
                 new UndeclaredVariable(),
                 new ClassDeclaration(),
                 new StatementsSemantics(),
-                new CallsSemantics()
+                new CallsSemantics(),
+                new EntityOpsSemantics()
         );
     }
 

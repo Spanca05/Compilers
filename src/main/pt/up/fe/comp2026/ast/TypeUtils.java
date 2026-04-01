@@ -95,6 +95,9 @@ public class TypeUtils {
             case ARRAY_EXPR -> getArrayExprType(expr);
             case NEW_CLASS_EXPR -> getNewClassExprType(expr);
             case METHOD_CALL_EXPR -> getMethodCallExprType(expr);
+            case NEG_EXPR -> getNegExprType(expr);
+            case PARENTESES_EXPR -> getParentesesExprType(expr);
+            case THIS_EXPR -> getThisExprType(expr);
             default ->
                     throw new UnsupportedOperationException("Can't compute type for expression kind '" + expr.getKind() + "'");
         };
@@ -118,13 +121,37 @@ public class TypeUtils {
 
 
     private JmmType getBinExprType(JmmNode binaryExpr) {
+        var left = binaryExpr.getChild(0);
+        var right = binaryExpr.getChild(1);
+        var leftType = getExprType(left);
+        var rightType = getExprType(right);
+
+        if (leftType == null || rightType == null) return null;
 
         // Get operator
         String operator = binaryExpr.get("op");
 
         return switch (operator) {
-            case "+", "*", "-", "/", "%" -> intType();
-            case "<", ">", "<=", ">=", "==", "!=", "&&", "||" -> booleanType();
+            case "+", "*", "-", "/", "%" ->
+                    leftType.equals(intType()) && rightType.equals(intType())
+                    ? intType()
+                    : null;
+
+            case "<", ">", "<=", ">=" ->
+                    leftType.equals(intType()) && rightType.equals(intType())
+                            ? booleanType()
+                            : null;
+
+            case "==", "!=" ->
+                leftType.equals(rightType)
+                        ? booleanType()
+                        : null;
+
+            case "&&", "||" ->
+                    leftType.equals(booleanType()) && rightType.equals(booleanType())
+                            ? booleanType()
+                            : null;
+
             default ->
                     throw new RuntimeException("Unknown operator '" + operator + "' of expression '" + binaryExpr + "'");
         };
@@ -213,6 +240,28 @@ public class TypeUtils {
 
         var dim = (int) Math.max(1, dimensions);
         return new JmmArrayType(JmmPrimitiveType.INT, dim);
+    }
+
+    private JmmType getNegExprType(JmmNode negExpr) {
+        var expr = negExpr.getChild(0);
+        var exprType = getExprType(expr);
+
+        if (exprType == null) return null;
+
+        if (!exprType.equals(JmmPrimitiveType.BOOLEAN)) return null;
+
+        return exprType;
+    }
+
+    private JmmType getParentesesExprType(JmmNode parentesesExpr) {
+        var expr = parentesesExpr.getChild(0);
+        var exprType = getExprType(expr);
+
+        return exprType;
+    }
+
+    private JmmType getThisExprType(JmmNode thisExpr) {
+        return new JmmClassType(table.getFullyQualifiedName(), false, false);
     }
 
     private JmmType normalizeImplicitClassType(JmmType type) {
