@@ -98,6 +98,10 @@ public class TypeUtils {
             case NEG_EXPR -> getNegExprType(expr);
             case PARENTESES_EXPR -> getParentesesExprType(expr);
             case THIS_EXPR -> getThisExprType(expr);
+            case ARRAY_ACESS_EXPR -> getArrayAccessExprType(expr);
+            case LENGTH_EXPR -> getLengthExprType(expr);
+            case UNARY_EXPR -> getUnaryExprType(expr);
+            case FUNCTION_CALL -> getFunctionCallExprType(expr);
             default ->
                     throw new UnsupportedOperationException("Can't compute type for expression kind '" + expr.getKind() + "'");
         };
@@ -262,6 +266,44 @@ public class TypeUtils {
 
     private JmmType getThisExprType(JmmNode thisExpr) {
         return new JmmClassType(table.getFullyQualifiedName(), false, false);
+    }
+
+    private JmmType getArrayAccessExprType(JmmNode arrayAccessExpr) {
+        var arrayType = getExprType(arrayAccessExpr.getChild(0));
+        var indexType = getExprType(arrayAccessExpr.getChild(1));
+
+        if (!(arrayType instanceof JmmArrayType jmmArrayType) || !intType().equals(indexType)) return null;
+
+        if (jmmArrayType.dimension() <= 1) return jmmArrayType.itemType();
+
+        return new JmmArrayType(jmmArrayType.itemType(), jmmArrayType.dimension() - 1);
+    }
+
+    private JmmType getLengthExprType(JmmNode lengthExpr) {
+        var arrayType = getExprType(lengthExpr.getChild(0));
+
+        if (!(arrayType instanceof JmmArrayType)) return null;
+
+        return intType();
+    }
+
+    private JmmType getUnaryExprType(JmmNode unaryExpr) {
+        var expr = unaryExpr.getChild(0);
+        var exprType = getExprType(expr);
+
+        if(!intType().equals(exprType)) return null;
+
+        return intType();
+    }
+
+    private JmmType getFunctionCallExprType(JmmNode functionCallExpr) {
+        var methodName = functionCallExpr.get(JmmAttributes.FUNCTION_CALL.NAME);
+        var argTypes = getArgTypes(functionCallExpr);
+        var signature = new Signature(methodName, argTypes);
+
+        return getMethodFromCurrentOrSuper(signature)
+                .map(MethodSymbol::returnType)
+                .orElse(null);
     }
 
     private JmmType normalizeImplicitClassType(JmmType type) {
