@@ -29,100 +29,78 @@ NEW: 'new';
 NULL: 'null';
 THIS: 'this';
 
-INTEGER : '0' | [1-9][0-9]* ;
+INTEGER: '0' | [1-9][0-9]*;
 BOOLEAN: 'false' | 'true';
 VOID: 'void';
 
-ID: [a-zA-Z$_][a-zA-Z0-9$_]* ;
+ID: [a-zA-Z$_][a-zA-Z0-9$_]*;
 
+WS: [ \t\n\r\f]+ -> skip;
 
-WS : [ \t\n\r\f]+ -> skip ;
+SINGLE_COMMENT: '//' ~[\r\n]* -> skip;
+BLOCK_COMMENT: '/*' .*? '*/' -> skip;
 
-SINGLE_COMMENT: '//' ~[\r\n]*-> skip;
-BLOCK_COMMENT : '/*' .*? '*/' -> skip;
+program: packageDecl importDecl* classNode = classDecl EOF;
 
-program
-    :  packageDecl importDecl* classNode=classDecl EOF
-    ;
+packageDecl: PACKAGE path += ID ('.' path += ID)* ';';
 
-packageDecl
-    : PACKAGE path += ID ('.' path +=ID)* ';'
-    ;
+importDecl: IMPORT path += ID ('.' path += ID)* ';';
 
-importDecl
-    : IMPORT ID.ID ('.' ID)* ';'
-    ;
+classDecl:
+	CLASS name = ID (EXTENDS superclass = ID)? '{' (
+		varDecl
+		| methodDecl
+	)* '}';
 
-classDecl
-    : CLASS name=ID
-        (EXTENDS ID)?
-        '{'
-        (varDecl | methodDecl)*
-        '}'
-    ;
+varDecl: typeNode = type name = ID ('=' expr)? ';';
 
-varDecl
-    : typeNode = type name=ID ('=' expr)?';'
-    ;
+methodDecl
+	locals[boolean isStatic=false]:
+	visibility = (PUBLIC | PROTECTED | PRIVATE)? (
+		STATIC {$isStatic=true;}
+	)? returnType = type name = ID '(' (param (',' param)*)? ')' '{' varDecl* stmt* '}';
 
-methodDecl locals[boolean isStatic=false]
-    : visibility=(PUBLIC | PROTECTED | PRIVATE)? (STATIC {$isStatic=true;})?
-        returnType = type name=ID
-        '('
-            (param(',' param)*)?
-        ')'
-        '{' varDecl* stmt* '}'
-    ;
+param: typeNode = type name = ID;
 
-param
-    : typeNode = type name=ID
-;
+type:
+	type '[' ']'
+	| name = BOOLEAN
+	| name = INT
+	| name = VOID
+	| name = ID;
 
-type
-    : type '[' ']'
-    | name = BOOLEAN
-    | name = INT
-    | name = VOID
-    | name = ID
-    ;
+stmt:
+	'{' stmt* '}'						# BlockStmt
+	| IF '(' expr ')' stmt (ELSE stmt)*	# IfStmt
+	| DO stmt WHILE '(' expr ')' ';'	# DoWhileStmt
+	| FOR '(' (var = ID ('[' expr ']')? '=' expr)? ';' expr? ';' (
+		var = ID ('[' expr ']')? '=' expr
+	)? ')' stmt								# ForStmt
+	| WHILE '(' expr ')' stmt				# WhileStmt
+	| expr ';'								# ExprStmt
+	| var = ID ('[' expr ']')* '=' expr ';'	# AssignStmt
+	| ID '[' expr ']' '=' expr ';'			# ArrayStmt
+	| RETURN expr? ';'						# ReturnStmt;
 
-stmt
-    : '{' stmt* '}' #BlockStmt
-    | IF '(' expr ')' stmt (ELSE stmt)* #IfStmt
-    | DO stmt WHILE '(' expr ')'  ';'  #DoWhileStmt
-    | FOR '(' (var = ID ('[' expr ']')? '=' expr )? ';' expr? ';' (var = ID ('[' expr ']')? '=' expr )? ')' stmt #ForStmt
-    | WHILE '(' expr ')' stmt #WhileStmt
-    | expr ';' #ExprStmt
-    | var = ID ('[' expr ']')* '=' expr ';' #AssignStmt
-    | ID '[' expr ']' '=' expr ';' #ArrayStmt
-    | RETURN expr? ';' #ReturnStmt
-    ;
+args: (expr (',' expr)*);
 
-args
-    : (expr (',' expr)*)
-    ;
-
-expr
-    : expr op= ('*' | '/' | '%' ) expr #BinaryExpr
-    | expr op= ('+' | '-') expr #BinaryExpr
-    | expr op= ('<' | '>' | '<=' | '>=' | '==' | '!=') expr #BinaryExpr
-    | expr op= ('&&' | '||') expr #BinaryExpr
-    | expr '[' expr ']'   #ArrayAcessExpr
-    | expr '.' 'length' #LengthExpr
-    | expr '.' ID ('(' args? ')')? #MethodCallExpr
-    | ID ('(' args? ')')?  #FunctionCall
-    | NEW INT '[' ']' '{' args? '}' #ArrayExpr //
-    | NEW INT ('[' expr ']')+ #ArrayExpr //
-    | NEW ID '(' args? ')' #NewClassExpr
-    | '!' expr #NegExpr
-    | '(' expr ')' #ParentesesExpr
-    | value=INTEGER #IntegerLiteral
-    | value=BOOLEAN #BooleanLiteral
-    | name=ID #VarRefExpr
-    | THIS #ThisExpr
-    | '-' '-'? expr #UnaryExpr
-    | '+' '+'? expr #UnaryExpr
-    ;
-
-
-
+expr:
+	expr '[' expr ']'											# ArrayAcessExpr
+	| expr '.' 'length'											# LengthExpr
+	| expr '.' name = ID ('(' args? ')')?						# MethodCallExpr
+	| expr op = ('*' | '/' | '%') expr							# BinaryExpr
+	| expr op = ('+' | '-') expr								# BinaryExpr
+	| expr op = ('<' | '>' | '<=' | '>=' | '==' | '!=') expr	# BinaryExpr
+	| expr op = ('&&' | '||') expr								# BinaryExpr
+	| name = ID '(' args? ')'									# FunctionCall
+	| NEW INT '[' ']' '{' args? '}'								# ArrayExpr //
+	| NEW INT ('[' expr ']')+									# ArrayExpr //
+	| NEW name = ID '(' args? ')'								# NewClassExpr
+	| '!' expr													# NegExpr
+	| '(' expr ')'												# ParentesesExpr
+	| value = INTEGER											# IntegerLiteral
+	| value = BOOLEAN											# BooleanLiteral
+	| name = ID													# VarRefExpr
+	| THIS														# ThisExpr
+	| '-' '-'? expr												# UnaryExpr
+	| '+' '+'? expr												# UnaryExpr;

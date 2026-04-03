@@ -1,5 +1,6 @@
 package pt.up.fe.comp2026.symboltable;
 
+import java_cup.runtime.symbol;
 import pt.up.fe.comp.jmm.analysis.table.MethodSymbol;
 import pt.up.fe.comp.jmm.analysis.table.Symbol;
 import pt.up.fe.comp.jmm.analysis.table.Visibility;
@@ -9,6 +10,7 @@ import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmArrayType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmClassType;
 import pt.up.fe.comp.jmm.ast.JmmNode;
+import pt.up.fe.comp.jmm.ast.Kind;
 import pt.up.fe.comp.jmm.report.Report;
 import pt.up.fe.comp.jmm.report.Stage;
 import pt.up.fe.comp.jmm.utils.Attributes;
@@ -26,9 +28,12 @@ public class JmmSymbolTableBuilder {
     private final JmmNode root;
     private final Importer importer;
     public String className;
+    public String superClassName;
     private final List<Report> reports;
     private final List<String> imports;
     private final Map<String, String> declaredClasses;
+
+    private Map<String, String> nameToPath = new HashMap<>();
 
     /**
      * Only build() can create new instances, this ensures that each instance is used only once,
@@ -66,19 +71,52 @@ public class JmmSymbolTableBuilder {
         SpecsCheck.checkArgument(CLASS_DECL.check(classDecl), () -> "Expected a class declaration: " + classDecl);
 
         this.className = classDecl.get("name");
+        this.superClassName = classDecl.hasAttribute("superclass") ? classDecl.get("superclass") : null;
         var fullyQualifiedName = packagePath + "." + className;
-
         // Check if className is available
         if (declaredClasses.containsKey(className)) {
             reports.add(newError(root, "'" + className + "' is already defined in this compilation unit"));
         }
         declaredClasses.put(className, fullyQualifiedName);
 
+        nameToPath = new HashMap<String, String>();
+        var importDecls = root.getChildren(IMPORT_DECL);
 
+        for (var importDecl: importDecls) {
+            var importPathList = new ArrayList<>(importDecl.getObjectAsList("path", String.class));
+            var fullImport = String.join(".", importPathList);
+
+            if (imports.contains(fullImport)) {
+                continue;
+            }
+            if (importer.getSymbolTableOf(fullImport).isEmpty()){
+                reports.add(newError(importDecl, "Class '" + fullImport + "' does not exist."));
+            }
+            var importName = importPathList.getLast();
+            importPathList.removeLast();
+            var importPath = String.join(".", importPathList);
+
+            if (nameToPath.containsKey(importName) &&
+                    !nameToPath.get(importName).equals(importPath)) {
+                reports.add(newError(importDecl, "'"+importPath+"."+importName+"' is already defined"));
+                continue;
+            }
+            
+            nameToPath.put(importName, importPath);
+            imports.add(fullImport);
+        }
+        // get superclass fully qualified name
+        var superFullyQualified = superClassName != null
+                ? nameToPath.getOrDefault(superClassName, "") + "." + superClassName
+                : null;
+
+        if (superClassName != null && !nameToPath.containsKey(superClassName) && !superClassName.equals(className) && !importer.isImplicitImport(superClassName)) {
+            reports.add(newError(classDecl, "Class '" + superClassName + "' is not imported."));
+        }
+
+        var fields = buildFields(classDecl);
         var methods = buildMethods(classDecl);
-
-        var symbolTable = new JmmSymbolTable(imports, fullyQualifiedName, null, Collections.emptyList(), methods, importer);
-
+        var symbolTable = new JmmSymbolTable(imports, fullyQualifiedName, superFullyQualified, fields, methods, importer);
         return new SymbolTableBuilderResult(symbolTable, reports);
     }
 
@@ -93,20 +131,87 @@ public class JmmSymbolTableBuilder {
     private MethodSymbol buildMethod(JmmNode method) {
         var methodName = method.get("name");
 
-        System.out.println("[TODO] JmmSymbolTableBuilder.buildMethod(): Assuming return type of method is always int, and always has a single int parameter, needs to be expanded");
-        var returnType = TypeUtils.intType();
+        // System.out.println("[TODO] JmmSymbolTableBuilder.buildMethod(): Assuming return type of method is always int, and always has a single int parameter, needs to be expanded");
+        var returnTypeNode = method.getChild(0);
+        var returnType = buildType(returnTypeNode);
 
+        // get Parameters, check for duplicates
+        var paramNames = new HashSet<String>();
+        var params = new ArrayList<Symbol>();
+        for (var param : method.getChildren(PARAM)){
+            var name = param.get(JmmAttributes.PARAM.NAME);
+            if (!paramNames.add(name)) {
+                reports.add(newError(param, "Parameter '" + name + "' is duplicated"));
+                continue;
+            }
+            var typeNode = param.getObject(JmmAttributes.PARAM.TYPE_NODE,JmmNode.class);
+            params.add(new Symbol(buildType(typeNode),name));
+        }
 
-        var params = List.of(new Symbol(TypeUtils.intType(), method.getChildren(PARAM).getFirst().get(JmmAttributes.PARAM.NAME)));
+        var localNames = new HashSet<>(paramNames);
+        var locals = new ArrayList<Symbol>();
+        for (var varDecl : method.getChildren(VAR_DECL)){
+            var name = varDecl.get(JmmAttributes.VAR_DECL.NAME);
+            if (!localNames.add(name)) {
+                reports.add(newError(varDecl, "A variable with " + name + " already exists."));
+                continue;
+            }
+            locals.add(buildField(varDecl));
+        }
 
-        System.out.println("[TODO] JmmSymbolTableBuilder.buildMethod(): Assuming all VarDecls are ints, needs to be expanded");
-        var locals = method.getChildren(VAR_DECL).stream()
-                .map(varDecl -> new Symbol(TypeUtils.intType(), varDecl.get(JmmAttributes.VAR_DECL.NAME)))
-                .toList();
+        // System.out.println("[TODO] JmmSymbolTableBuilder.buildMethod(): Assuming all VarDecls are ints, needs to be expanded");
 
-        var visibility =  Visibility.PUBLIC;
+        var visibility = method.hasAttribute("visibility")
+                ? Visibility.fromString(method.get("visibility"))
+                : Visibility.PACKAGE_PROTECTED;
         var isStatic = method.getBoolean(JmmAttributes.METHOD_DECL.IS_STATIC, false);
         return new MethodSymbol(methodName, returnType, params, locals, isStatic, visibility);
+    }
+
+    private List<Symbol> buildFields(JmmNode classDecl) {
+        return classDecl.getChildren(VAR_DECL).stream()
+                .map(this::buildField)
+                .toList();
+    }
+
+    private Symbol buildField(JmmNode field) {
+        var fieldName = field.get(JmmAttributes.VAR_DECL.NAME);
+        var typeNode = field.getObject(JmmAttributes.VAR_DECL.TYPE_NODE, JmmNode.class);
+        var fieldType = buildType(typeNode);
+
+        return new Symbol(fieldType, fieldName);
+    }
+
+    private JmmType buildType(JmmNode typeNode) {
+        // Caso base: tipo simples
+        if (typeNode.getAttributes().contains("name")) {
+            var typeName = typeNode.get("name");
+            var primitiveType = JmmPrimitiveType.fromString(typeName);
+
+            if (primitiveType.isPresent()) {
+                return primitiveType.get();
+            }
+            if (typeName.equals(className))
+                return new JmmClassType(declaredClasses.get(className),false,false);
+
+            var isImported = nameToPath.containsKey(typeName);
+            var resolvedName = isImported ? nameToPath.get(typeName) + "." + typeName : typeName;
+            // Classe (Assumimos não importada e não static por agora)
+            return new JmmClassType(resolvedName, isImported, false);
+        }
+
+        // Caso array
+        var innerTypeNode = typeNode.getChildren(TYPE).getFirst();
+        var innerType = buildType(innerTypeNode);
+
+        if (innerType instanceof JmmArrayType arrayType) {
+            return new JmmArrayType(
+                    arrayType.itemType(),
+                    arrayType.dimension() + 1
+            );
+        }
+
+        return new JmmArrayType(innerType, 1);
     }
 
 
