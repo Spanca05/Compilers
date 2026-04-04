@@ -35,7 +35,6 @@ public class ArraySemantics extends AnalysisVisitor {
     public void buildVisitor() {
         addVisit(JmmKind.METHOD_DECL, this::visitMethodDecl);
         addVisit(JmmKind.ARRAY_ACESS_EXPR, this::visitArrayAccessExpr);
-        addVisit(JmmKind.ARRAY_STMT, this::visitArrayStmt);
         addVisit(JmmKind.ARRAY_EXPR, this::visitArrayExpr);
         addVisit(JmmKind.LENGTH_EXPR, this::visitLengthExpr);
         addVisit(JmmKind.BINARY_EXPR, this::visitBinaryExpr);
@@ -64,37 +63,10 @@ public class ArraySemantics extends AnalysisVisitor {
         return null;
     }
 
-    private Void visitArrayStmt(JmmNode arrayStmt, SymbolTable table) {
-        var arrayType = TypeUtils.with(table).getExprType(arrayStmt);
-        var indexExpr = arrayStmt.getChild(0);
-        var valueExpr = arrayStmt.getChild(1);
-
-        var indexType = TypeUtils.with(table).getExprType(indexExpr);
-        var valueType = TypeUtils.with(table).getExprType(valueExpr);
-
-        // index must be int
-        if (indexType != null && !indexType.equals(JmmPrimitiveType.INT)) {
-            addReport(newError(arrayStmt,
-                    "Array index must be of type int, but got '" + indexType + "'."));
-        }
-
-        // find the array variable's element type+
-        if (arrayType instanceof JmmArrayType arrType && valueType != null) {
-            if (!valueType.equals(arrType.itemType())) {
-                addReport(newError(arrayStmt,
-                        "Cannot store value of type '" + valueType +
-                                "' into array of element type '" + arrType.itemType() + "'."));
-            }
-        }
-
-        return null;
-    }
-
     private Void visitArrayExpr(JmmNode arrayExpr, SymbolTable table) {
         var argsChildren = arrayExpr.getChildren(JmmKind.ARGS);
 
         if (argsChildren.isEmpty()) {
-            // size-based: new int[expr] — all non-ARGS children are size exprs
             for (var child : arrayExpr.getChildren()) {
                 var sizeType = TypeUtils.with(table).getExprType(child);
                 if (sizeType != null && !sizeType.equals(JmmPrimitiveType.INT)) {
@@ -103,7 +75,6 @@ public class ArraySemantics extends AnalysisVisitor {
                 }
             }
         } else {
-            // initializer list: new int[]{e1, e2, ...}
             var args = argsChildren.getFirst();
             for (var element : args.getChildren()) {
                 var elemType = TypeUtils.with(table).getExprType(element);
@@ -131,7 +102,6 @@ public class ArraySemantics extends AnalysisVisitor {
     private Void visitBinaryExpr(JmmNode binaryExpr, SymbolTable table) {
         var op = binaryExpr.get("op");
 
-        // only check arithmetic operators
         if (!op.equals("+") && !op.equals("-") && !op.equals("*") && !op.equals("/") && !op.equals("%")) {
             return null;
         }

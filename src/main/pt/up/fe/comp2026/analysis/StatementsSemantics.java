@@ -163,51 +163,58 @@ public class StatementsSemantics extends AnalysisVisitor {
 
     public Void visitAssignStmt(JmmNode assignStmt, SymbolTable table) {
         var varName = assignStmt.get(JmmAttributes.ASSIGN_STMT.VAR);
-        var rhsExpr = assignStmt.getChild(0);
+        var children = assignStmt.getChildren();
 
-        System.out.println(varName);
-        System.out.println(rhsExpr);
-        System.out.println(assignStmt.getAttributes());
-
-
-        JmmType lhsType = null;
+        var rhsExpr = children.getLast();
         var rhsType = TypeUtils.with(table).getExprType(rhsExpr);
 
+        JmmType lhsType = null;
         var localVar = currentMethod.getLocalVariable(varName);
 
-        if (localVar.isPresent()) {
+        if (localVar.isPresent())
             lhsType = localVar.get().type();
-        } else {
+        else {
             var param = currentMethod.getParameter(varName);
-
-            if (param.isPresent()) {
+            if (param.isPresent())
                 lhsType = param.get().type();
-            } else {
+            else {
                 var field = table.getField(varName);
-
                 if (field.isPresent()) {
                     lhsType = field.get().type();
                 }
             }
         }
 
+        if (lhsType == null) return null;
 
-        if (lhsType == null)
-            return null;
+        boolean isArrayStore = children.size() > 1;
 
-        if (!isAssignable(lhsType, rhsType, table)) {
-            var message = String.format(
-                    "Cannot assign expression of type '%s' to variable '%s' of type '%s'.",
-                    rhsType,
-                    varName,
-                    lhsType);
+        if (isArrayStore) {
+            for (int i = 0; i < children.size() - 1; i++) {
+                var indexType = TypeUtils.with(table).getExprType(children.get(i));
+                if (indexType != null && !indexType.equals(JmmPrimitiveType.INT)) {
+                    addReport(Report.newError(Stage.SEMANTIC,
+                            NodeUtils.getLine(assignStmt), NodeUtils.getColumn(assignStmt),
+                            "Array index must be of type int, but got '" + indexType + "'.", null));
+                }
+            }
 
-            addReport(Report.newError(
-                    Stage.SEMANTIC,
-                    NodeUtils.getLine(assignStmt),
-                    NodeUtils.getColumn(assignStmt),
-                    message,
-                    null));
+            if (lhsType instanceof JmmArrayType arrayType && rhsType != null) {
+                if (!rhsType.equals(arrayType.itemType())) {
+                    addReport(Report.newError(Stage.SEMANTIC,
+                            NodeUtils.getLine(assignStmt), NodeUtils.getColumn(assignStmt),
+                            "Cannot store value of type '" + rhsType +
+                                    "' into array of element type '" + arrayType.itemType() + "'.", null));
+                }
+            }
+        }
+        else {
+            if (!isAssignable(lhsType, rhsType, table)) {
+                addReport(Report.newError(Stage.SEMANTIC,
+                        NodeUtils.getLine(assignStmt), NodeUtils.getColumn(assignStmt),
+                        String.format("Cannot assign expression of type '%s' to variable '%s' of type '%s'.",
+                                rhsType, varName, lhsType), null));
+            }
         }
 
         return null;

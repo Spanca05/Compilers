@@ -94,7 +94,7 @@ expr:
 	| expr op = ('&&' | '||') expr								# BinaryExpr
 	| name = ID '(' args? ')'									# FunctionCall
 	| NEW INT '[' ']' '{' args? '}'								# ArrayExpr //
-	| NEW INT ('[' expr ']')+									# ArrayExpr //
+	| NEW INT ('[' expr? ']')+									# ArrayExpr //
 	| NEW name = ID '(' args? ')'								# NewClassExpr
 	| '!' expr													# NegExpr
 	| '(' expr ')'												# ParentesesExpr
