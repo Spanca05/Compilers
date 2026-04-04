@@ -174,7 +174,12 @@ public class TypeUtils {
 
         var param = method.getParameter(varName);
         if(param.isPresent()) return param.get().type();
+        if (varName.equals(table.getClassName()))
+            return new JmmClassType(table.getClassName(), false, true); // staticRef=true
 
+        var imported = table.getImportedFullyQualifiedName(varName);
+        if (imported.isPresent())
+            return new JmmClassType(imported.get(), true, true); // staticRef=true
         // Undeclared — UndeclaredVariable pass handles the error
         var field = table.getFields().stream()
                 .filter(f -> f.name().equals(varName))
@@ -234,16 +239,16 @@ public class TypeUtils {
 
         if (maybeMethod.isPresent()) return normalizeImplicitClassType(maybeMethod.get().returnType());
 
+        if (targetTable.get() == table) {
+            var superMethod = getMethodFromCurrentOrSuper(signature);
+            if (superMethod.isPresent()) return superMethod.get().returnType();
+        }
         return null;
     }
 
     private JmmType getArrayExprType(JmmNode arrayExpr) {
-        long dimensions = arrayExpr.getChildren().stream()
-                .filter(child -> !JmmKind.ARGS.check(child))
-                .count();
-
-        var dim = (int) Math.max(1, dimensions);
-        return new JmmArrayType(JmmPrimitiveType.INT, dim);
+        var dims = arrayExpr.getObjectAsList("open", String.class).size();
+        return new JmmArrayType(JmmPrimitiveType.INT, dims > 0 ? dims : 1);
     }
 
     private JmmType getNegExprType(JmmNode negExpr) {
@@ -342,8 +347,9 @@ public class TypeUtils {
         if (superName == null) {
             return Optional.empty();
         }
-
-        var maybeSuperTable = table.getImportedSymbolTable(superName);
+        var fqSuperName = table.getImportedFullyQualifiedName(superName)
+                .orElse(superName);
+        var maybeSuperTable = table.getImportedSymbolTable(fqSuperName);
         if (maybeSuperTable.isEmpty()) {
             var simpleSuper = superName.substring(superName.lastIndexOf('.') + 1);
             maybeSuperTable = table.getImplicitImport(simpleSuper);
@@ -352,7 +358,7 @@ public class TypeUtils {
         if (maybeSuperTable.isEmpty()) {
             return Optional.empty();
         }
-
+        System.out.println("Super table: " + maybeSuperTable.get().getMethods());
         return maybeSuperTable.get().getMethod(signature);
     }
 

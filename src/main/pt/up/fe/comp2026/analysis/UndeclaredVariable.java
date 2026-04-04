@@ -38,6 +38,9 @@ public class UndeclaredVariable extends AnalysisVisitor {
         if(table.getField(varRefName).isPresent())
             return null;
 
+        if (varRefName.equals(table.getClassName())) return null;
+        if (table.getImportedFullyQualifiedName(varRefName).isPresent()) return null;
+
         var message = String.format("Variable '%s' does not exist.", varRefName);
         addReport(Report.newError(
                 Stage.SEMANTIC,

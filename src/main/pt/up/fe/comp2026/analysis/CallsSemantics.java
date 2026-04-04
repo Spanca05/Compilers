@@ -87,8 +87,13 @@ public class CallsSemantics extends AnalysisVisitor {
 
         var receiverType = TypeUtils.with(table).getExprType(receiver);
         var targetTable = resolveTableFromReceiverType(receiverType, table);
+        var methodExists = targetTable.isPresent() && (
+                targetTable.get() == table
+                        ? existsInCurrentClassOrSuperclass(signature, table)
+                        : targetTable.get().getMethod(signature).isPresent()
+        );
 
-        if (targetTable.isEmpty() || targetTable.get().getMethod(signature).isEmpty()) {
+        if (!methodExists) {
             var receiverName = receiverType instanceof JmmClassType classType
                 ? classType.fullyQualifiedName()
                 : receiverType.toString();
