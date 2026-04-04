@@ -32,7 +32,8 @@ public class JmmAnalysisImpl implements JmmAnalysis {
                 new ClassDeclaration(),
                 new StatementsSemantics(),
                 new CallsSemantics(),
-                new EntityOpsSemantics()
+                new EntityOpsSemantics(),
+                new ArraySemantics()
         );
     }
 

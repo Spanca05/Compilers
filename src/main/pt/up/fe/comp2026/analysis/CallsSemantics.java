@@ -87,8 +87,13 @@ public class CallsSemantics extends AnalysisVisitor {
 
         var receiverType = TypeUtils.with(table).getExprType(receiver);
         var targetTable = resolveTableFromReceiverType(receiverType, table);
+        var methodExists = targetTable.isPresent() && (
+                targetTable.get() == table
+                        ? existsInCurrentClassOrSuperclass(signature, table)
+                        : targetTable.get().getMethod(signature).isPresent()
+        );
 
-        if (targetTable.isEmpty() || targetTable.get().getMethod(signature).isEmpty()) {
+        if (!methodExists) {
             var receiverName = receiverType instanceof JmmClassType classType
                 ? classType.fullyQualifiedName()
                 : receiverType.toString();
@@ -128,6 +133,32 @@ public class CallsSemantics extends AnalysisVisitor {
             ));
         }
 
+        var argTypes = getArgTypes(newClassExpr, table);
+        var constructorSignature = new Signature("<init>", argTypes);
+
+        Optional<SymbolTable> targetTable;
+        if (isCurrentClass) {
+            targetTable = Optional.of(table);
+        } else {
+            var fqName = table.getImportedFullyQualifiedName(className);
+            targetTable = fqName.isPresent()
+                    ? ((JmmSymbolTable) table).getImportedSymbolTable(fqName.get())
+                    : ((JmmSymbolTable) table).getImplicitImport(className);
+        }
+
+        if (!isCurrentClass && targetTable.isPresent() && targetTable.get().getMethod(constructorSignature).isEmpty()) {
+            var message = String.format(
+                    "No constructor found for class '%s' with argument types %s.",
+                    className, argTypes);
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    NodeUtils.getLine(newClassExpr),
+                    NodeUtils.getColumn(newClassExpr),
+                    message,
+                    null
+            ));
+        }
+
         return null;
     }
 
@@ -151,12 +182,13 @@ public class CallsSemantics extends AnalysisVisitor {
             return false;
         }
 
-        var superName = table.getSuper();
+        var superName = table.getSuperFullyQualifiedName();
         if (superName == null) {
             return false;
         }
 
         var maybeSuperTable = jmmTable.getImportedSymbolTable(superName);
+
         if (maybeSuperTable.isEmpty()) {
             var simpleSuper = superName.substring(superName.lastIndexOf('.') + 1);
             maybeSuperTable = jmmTable.getImplicitImport(simpleSuper);

@@ -3,6 +3,7 @@ package pt.up.fe.comp2026.analysis;
 import pt.up.fe.comp.jmm.analysis.table.MethodSymbol;
 import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
 import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
+import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmArrayType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmPrimitiveType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmClassType;
 import pt.up.fe.comp.jmm.ast.JmmNode;
@@ -14,6 +15,7 @@ import pt.up.fe.comp2026.jmm.ast.JmmAttributes;
 import pt.up.fe.comp2026.jmm.ast.JmmKind;
 import pt.up.fe.comp2026.symboltable.JmmSymbolTable;
 
+import java.util.Objects;
 import java.util.Optional;
 
 public class StatementsSemantics extends AnalysisVisitor {
@@ -27,6 +29,8 @@ public class StatementsSemantics extends AnalysisVisitor {
         addVisit(JmmKind.RETURN_STMT, this::visitReturnStmt);
         addVisit(JmmKind.VAR_DECL, this::visitVarDecl);
         addVisit(JmmKind.ASSIGN_STMT, this::visitAssignStmt);
+        addVisit(JmmKind.DO_WHILE_STMT, this::visitDoWhileStmt);
+        addVisit(JmmKind.FOR_STMT, this::visitForStmt);
     }
 
     private Void visitMethodDecl(JmmNode method, SymbolTable table) {
@@ -159,45 +163,58 @@ public class StatementsSemantics extends AnalysisVisitor {
 
     public Void visitAssignStmt(JmmNode assignStmt, SymbolTable table) {
         var varName = assignStmt.get(JmmAttributes.ASSIGN_STMT.VAR);
-        var rhsExpr = assignStmt.getChild(0);
+        var children = assignStmt.getChildren();
 
-        JmmType lhsType = null;
+        var rhsExpr = children.getLast();
         var rhsType = TypeUtils.with(table).getExprType(rhsExpr);
 
+        JmmType lhsType = null;
         var localVar = currentMethod.getLocalVariable(varName);
 
-        if (localVar.isPresent()) {
+        if (localVar.isPresent())
             lhsType = localVar.get().type();
-        } else {
+        else {
             var param = currentMethod.getParameter(varName);
-
-            if (param.isPresent()) {
+            if (param.isPresent())
                 lhsType = param.get().type();
-            } else {
+            else {
                 var field = table.getField(varName);
-
                 if (field.isPresent()) {
                     lhsType = field.get().type();
                 }
             }
         }
 
-        if (lhsType == null)
-            return null;
+        if (lhsType == null) return null;
 
-        if (!isAssignable(lhsType, rhsType, table)) {
-            var message = String.format(
-                    "Cannot assign expression of type '%s' to variable '%s' of type '%s'.",
-                    rhsType,
-                    varName,
-                    lhsType);
+        boolean isArrayStore = children.size() > 1;
 
-            addReport(Report.newError(
-                    Stage.SEMANTIC,
-                    NodeUtils.getLine(assignStmt),
-                    NodeUtils.getColumn(assignStmt),
-                    message,
-                    null));
+        if (isArrayStore) {
+            for (int i = 0; i < children.size() - 1; i++) {
+                var indexType = TypeUtils.with(table).getExprType(children.get(i));
+                if (indexType != null && !indexType.equals(JmmPrimitiveType.INT)) {
+                    addReport(Report.newError(Stage.SEMANTIC,
+                            NodeUtils.getLine(assignStmt), NodeUtils.getColumn(assignStmt),
+                            "Array index must be of type int, but got '" + indexType + "'.", null));
+                }
+            }
+
+            if (lhsType instanceof JmmArrayType arrayType && rhsType != null) {
+                if (!rhsType.equals(arrayType.itemType())) {
+                    addReport(Report.newError(Stage.SEMANTIC,
+                            NodeUtils.getLine(assignStmt), NodeUtils.getColumn(assignStmt),
+                            "Cannot store value of type '" + rhsType +
+                                    "' into array of element type '" + arrayType.itemType() + "'.", null));
+                }
+            }
+        }
+        else {
+            if (!isAssignable(lhsType, rhsType, table)) {
+                addReport(Report.newError(Stage.SEMANTIC,
+                        NodeUtils.getLine(assignStmt), NodeUtils.getColumn(assignStmt),
+                        String.format("Cannot assign expression of type '%s' to variable '%s' of type '%s'.",
+                                rhsType, varName, lhsType), null));
+            }
         }
 
         return null;
@@ -271,5 +288,72 @@ public class StatementsSemantics extends AnalysisVisitor {
         return candidateName.equals(expectedFqName)
                 || candidateName.equals(expectedSimpleName)
                 || candidateSimpleName.equals(expectedSimpleName);
+    }
+
+    private Void visitDoWhileStmt(JmmNode doWhileStmt, SymbolTable table) {
+        var condition = doWhileStmt.getChild(1);
+        var condType = TypeUtils.with(table).getExprType(condition);
+
+        if (condType == JmmPrimitiveType.BOOLEAN)
+            return null;
+
+        var message = "Do-While condition must have type boolean.";
+        addReport(Report.newError(
+                Stage.SEMANTIC,
+                NodeUtils.getLine(condition),
+                NodeUtils.getColumn(condition),
+                message,
+                null));
+
+        return null;
+    }
+
+    private Void visitForStmt(JmmNode forStmt, SymbolTable table) {
+        var first = forStmt.getChild(0);
+        var condition = forStmt.getChild(1);
+        var second = forStmt.getChild(2);
+
+
+        var firstType = TypeUtils.with(table).getExprType(first);
+        var condType = TypeUtils.with(table).getExprType(condition);
+        var secondType = TypeUtils.with(table).getExprType(second);
+
+        if (firstType != JmmPrimitiveType.INT) {
+            var message = "For first expression must have type int. \n";
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    NodeUtils.getLine(condition),
+                    NodeUtils.getColumn(condition),
+                    message,
+                    null));
+
+            return null;
+        }
+
+        if (condType != JmmPrimitiveType.BOOLEAN) {
+            var message = "For condition must have type boolean. \n";
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    NodeUtils.getLine(condition),
+                    NodeUtils.getColumn(condition),
+                    message,
+                    null));
+
+            return null;
+        }
+
+        if (secondType != JmmPrimitiveType.INT) {
+            var message = "For second expression must have type int.";
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    NodeUtils.getLine(condition),
+                    NodeUtils.getColumn(condition),
+                    message,
+                    null));
+
+            return null;
+        }
+
+        return null;
     }
 }
