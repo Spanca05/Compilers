@@ -4,15 +4,12 @@ import pt.up.fe.comp.jmm.analysis.table.MethodSymbol;
 import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
 import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmArrayType;
-import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmPrimitiveType;
 import pt.up.fe.comp.jmm.ast.AJmmVisitor;
 import pt.up.fe.comp.jmm.ast.JmmNode;
-import pt.up.fe.comp.jmm.utils.Attributes;
-import pt.up.fe.comp2026.ast.AccessType;
 import pt.up.fe.comp2026.ast.NodeUtils;
 import pt.up.fe.comp2026.ast.TypeUtils;
 import pt.up.fe.comp2026.jmm.ast.JmmAttributes;
-import pt.up.fe.specs.util.utilities.StringLines;
+import pt.up.fe.comp2026.jmm.ast.JmmKind;
 
 import java.util.stream.Collectors;
 
@@ -66,11 +63,11 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
 
     private String simpleVarDecl(JmmNode varDecl, Void unused) {
-        return varDecl.get("name") + ollirTypes.toOllirType(varDecl.getObject("typeNode", JmmNode.class)) + ";";
+        return ollirTypes.sanitizeId(varDecl.get("name")) + ollirTypes.toOllirType(varDecl.getObject("typeNode", JmmNode.class)) + ";";
     }
 
     private String visitParam(JmmNode varDecl, Void unused) {
-        return varDecl.get("name") + ollirTypes.toOllirType(varDecl.getObject("typeNode", JmmNode.class));
+        return ollirTypes.sanitizeId(varDecl.get("name")) + ollirTypes.toOllirType(varDecl.getObject("typeNode", JmmNode.class));
     }
 
 
@@ -81,53 +78,72 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
 
     private String visitAssignStmt(JmmNode node, Void unused) {
-        // TODO: Several hard-coded things, should be rewritten
-
-        var rhs = exprVisitor.visit(node.getChild(0));
-
-        // code to compute self
-        // statement has type of lhs
         var varName = node.get(JmmAttributes.ASSIGN_STMT.VAR);
-        JmmType thisType = TypeUtils.intType();
-        String typeString = ollirTypes.toOllirType(thisType);
-        var varCode = ollirTypes.sanitizeId(varName) + typeString;
-
-
         var code = new StringBuilder();
 
-        // code to compute the children
+        if(isArrayStore(node)) {
+            int numIndexes = node.getNumChildren() - 1;
+            var value = exprVisitor.visit(node.getChild(numIndexes));
+
+            var baseType = getVarType(varName);
+            var targetType = getArrayIndexedType(baseType, numIndexes);
+            var baseTypeStr = ollirTypes.toOllirType(baseType);
+            var targetTypeStr = ollirTypes.toOllirType(targetType);
+            var intTypeStr = ollirTypes.toOllirType(TypeUtils.intType());
+
+            var lhs = new StringBuilder(ollirTypes.sanitizeId(varName)).append(baseTypeStr);
+
+            for (int i = 0; i < numIndexes; i++) {
+                var index = exprVisitor.visit(node.getChild(i));
+                code.append(index.getComputation());
+
+                var indexTemp = ollirTypes.nextTemp() + intTypeStr;
+                code.append(indexTemp).append(SPACE).append(ASSIGN).append(intTypeStr)
+                    .append(SPACE).append(index.getCode()).append(END_STMT);
+
+                lhs.append("[").append(indexTemp).append("]");
+            }
+
+            code.append(value.getComputation());
+            code.append(lhs).append(targetTypeStr).append(SPACE).append(ASSIGN)
+                .append(targetTypeStr).append(SPACE).append(value.getCode()).append(END_STMT);
+
+            return code.toString();
+        }
+
+        // Simple assignment: x = value;
+        var rhs = exprVisitor.visit(node.getChild(0));
+        var lhsType = getVarType(varName);
+        var lhsTypeStr = ollirTypes.toOllirType(lhsType);
+
         code.append(rhs.getComputation());
-
-        code.append(varCode);
-        code.append(SPACE);
-
-        code.append(ASSIGN);
-        code.append(typeString);
-        code.append(SPACE);
-
-        code.append(rhs.getCode());
-
-        code.append(END_STMT);
+        code.append(ollirTypes.sanitizeId(varName)).append(lhsTypeStr).append(SPACE)
+            .append(ASSIGN).append(lhsTypeStr).append(SPACE)
+            .append(rhs.getCode()).append(END_STMT);
 
         return code.toString();
     }
 
     private String visitReturn(JmmNode node, Void unused) {
+        JmmType retType = currentMethod.returnType();
+        var retTypeString = ollirTypes.toOllirType(retType);
 
-        System.out.println("[TODO] OllirGeneratorVisitor.visitReturn(): Assuming always returns an integer expression, needs to be expanded");
-        JmmType retType = TypeUtils.intType();
+        var code = new StringBuilder();
+
+        if (node.getNumChildren() == 0) {
+            code.append("ret");
+            code.append(retTypeString);
+            code.append(END_STMT);
+            return code.toString();
+        }
+
         var expr = exprVisitor.visit(node.getChild(0));
-
-
-        StringBuilder code = new StringBuilder();
 
         code.append(expr.getComputation());
         code.append("ret");
-        code.append(ollirTypes.toOllirType(retType));
+        code.append(retTypeString);
         code.append(SPACE);
-
         code.append(expr.getCode());
-
         code.append(END_STMT);
 
         return code.toString();
@@ -154,8 +170,10 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         code.append(name);
 
         // params
-        // TODO: Hardcoded for a single parameter, needs to be expanded
-        var paramsCode = visit(node.getChild(1));
+        var params = node.getChildren(PARAM);
+        var paramsCode = params.stream()
+                        .map(param -> visit(param))
+                                .collect(Collectors.joining(", "));
         code.append("(" + paramsCode + ")");
 
         // type
@@ -234,5 +252,38 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         }
 
         return "";
+    }
+
+    private JmmType getVarType(String varName) {
+        var local = currentMethod.getLocalVariable(varName);
+        if (local.isPresent()) return local.get().type();
+
+        var param = currentMethod.getParameter(varName);
+        if (param.isPresent()) return param.get().type();
+
+        var field = table.getField(varName);
+        if (field.isPresent()) return field.get().type();
+
+        throw new RuntimeException("Variable not found: " + varName);
+    }
+
+    private boolean isArrayStore(JmmNode assignNode) {
+        return assignNode.getNumChildren() > 1;
+    }
+
+    private JmmType getArrayIndexedType(JmmType baseType, int numIndexes) {
+        var currentType = baseType;
+
+        for (int i = 0; i < numIndexes; i++) {
+            if (!(currentType instanceof JmmArrayType arrayType)) {
+                throw new RuntimeException("Expected array type, got: " + currentType);
+            }
+
+            currentType = arrayType.dimension() == 1
+                ? arrayType.itemType()
+                : new JmmArrayType(arrayType.itemType(), arrayType.dimension() - 1);
+        }
+
+        return currentType;
     }
 }
