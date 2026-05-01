@@ -10,6 +10,7 @@ import pt.up.fe.comp2026.ast.NodeUtils;
 import pt.up.fe.comp2026.ast.TypeUtils;
 import pt.up.fe.comp2026.jmm.ast.JmmAttributes;
 import pt.up.fe.comp2026.jmm.ast.JmmKind;
+import pt.up.fe.comp2026.jmm.ast.JmmAttributes.ASSIGN_STMT;
 
 import java.util.stream.Collectors;
 
@@ -62,6 +63,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         addVisit(IF_STMT, this::visitIfStmt);
         addVisit(BLOCK_STMT, this::visitBlockStmt);
         addVisit(WHILE_STMT, this::visitWhileStmt);
+        addVisit(FOR_STMT, this::visitForStmt);
 //        setDefaultVisit(this::defaultVisit);
     }
 
@@ -311,6 +313,87 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         var whileBlock = visit(node.getChild(1));
 
         code.append(whileBlock);
+
+        code.append("goto")
+                .append(SPACE)
+                .append(beginLabel)
+                .append(END_STMT);
+
+        code.append(exitLabel)
+                .append(":")
+                .append(NL);
+
+        return code.toString();
+    }
+
+    private String visitForStmt(JmmNode node, Void unused) {
+        var varName = node.get("var");
+        var varType = getVarType(varName);
+        var varTypeStr = ollirTypes.toOllirType(varType);
+
+        var checkCond = exprVisitor.visit(node.getChild(1));
+        var updateCond = exprVisitor.visit(node.getChild(2));
+
+        var loopLabel = ollirTypes.nextTemp("loop_body_");
+        var beginLabel = ollirTypes.nextTemp("loop_begin_");
+        var exitLabel = ollirTypes.nextTemp("loop_exit_");
+
+        var code = new StringBuilder();
+
+        var initNode = node.getChild(0);
+        if (initNode.getKind() == ASSIGN_STMT) {
+            code.append(visit(initNode));
+        }
+        else {
+            var initExpr = exprVisitor.visit(initNode);
+
+            code.append(initExpr.getComputation());
+
+            code.append(ollirTypes.sanitizeId(varName))
+                .append(varTypeStr)
+                .append(SPACE)
+                .append(ASSIGN)
+                .append(varTypeStr)
+                .append(SPACE)
+                .append(initExpr.getCode())
+                .append(END_STMT);
+        }
+
+        code.append(beginLabel)
+                .append(":")
+                .append(NL);
+
+        code.append(checkCond.getComputation());
+
+        code.append("if (")
+                .append(checkCond.getCode())
+                .append(") goto ")
+                .append(loopLabel)
+                .append(END_STMT);
+
+        code.append("goto")
+                .append(SPACE)
+                .append(exitLabel)
+                .append(END_STMT);
+
+        code.append(loopLabel)
+                .append(":")
+                .append(NL);
+
+        var forBlock = visit(node.getChild(3));
+
+        code.append(forBlock);
+
+        code.append(updateCond.getComputation());
+
+        code.append(ollirTypes.sanitizeId(varName))
+                .append(varTypeStr)
+                .append(SPACE)
+                .append(ASSIGN)
+                .append(varTypeStr)
+                .append(SPACE)
+                .append(updateCond.getCode())
+                .append(END_STMT);
 
         code.append("goto")
                 .append(SPACE)
