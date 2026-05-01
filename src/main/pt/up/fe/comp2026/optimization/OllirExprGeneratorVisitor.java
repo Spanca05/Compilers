@@ -10,6 +10,7 @@ import pt.up.fe.comp.jmm.ast.JmmNode;
 import pt.up.fe.comp.jmm.ast.Kind;
 import pt.up.fe.comp2026.ast.AccessType;
 import pt.up.fe.comp2026.ast.TypeUtils;
+import pt.up.fe.comp2026.jmm.ast.JmmAttributes;
 import pt.up.fe.comp2026.jmm.ast.JmmKind;
 
 import java.io.Console;
@@ -53,6 +54,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         addVisit(METHOD_CALL_EXPR, this::visitMethodCallExpr);
         addVisit(THIS_EXPR, this::visitThisExpr);
         addVisit(NEG_EXPR, this::visitNegExpr);
+        addVisit(NEW_CLASS_EXPR, this::visitNewClassExpr);
     }
 
     private OllirExprResult visitInteger(JmmNode node, Void unused) {
@@ -334,5 +336,33 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                 .append(END_STMT);
 
         return new OllirExprResult(temp, computation.toString());
+    }
+
+    private OllirExprResult visitNewClassExpr(JmmNode node, Void unused) {
+        var className = node.get(JmmAttributes.NEW_CLASS_EXPR.NAME);
+        var classType = "." + className;
+        var temp = ollirTypes.nextTemp();
+
+        var code = temp + classType;
+
+        var computation = new StringBuilder();
+
+        computation.append(code)
+                .append(SPACE)
+                .append(ASSIGN)
+                .append(classType)
+                .append(SPACE)
+                .append("new(")
+                .append(className)
+                .append(")")
+                .append(classType)
+                .append(END_STMT);
+
+        computation.append("invokespecial(")
+            .append(code)
+            .append(", \"<init>\").V")
+            .append(END_STMT);
+
+        return new OllirExprResult(code, computation.toString());
     }
 }

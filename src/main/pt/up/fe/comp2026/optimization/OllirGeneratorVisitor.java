@@ -84,7 +84,8 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
     }
 
     private String visitImportDecl(JmmNode importDecl, Void unused) {
-        return "";
+        var path = String.join(".", importDecl.getObjectAsList("path", String.class));
+        return "import " + path + ";\n";
     }
 
 
@@ -213,6 +214,13 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
         code.append(NL);
         code.append(table.getClassName());
+
+        if (node.hasAttribute(JmmAttributes.CLASS_DECL.SUPERCLASS)) {
+            var superClass = table.getSuper();
+
+            code.append(" extends ")
+                    .append(superClass);
+        }
 
         code.append(L_BRACKET);
         code.append(NL);
