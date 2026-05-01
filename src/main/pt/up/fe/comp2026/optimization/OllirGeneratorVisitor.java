@@ -58,6 +58,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         addVisit(METHOD_DECL, this::visitMethodDecl);
         addVisit(RETURN_STMT, this::visitReturn);
         addVisit(ASSIGN_STMT, this::visitAssignStmt);
+        addVisit(IMPORT_DECL, this::visitImportDecl);
 //        setDefaultVisit(this::defaultVisit);
     }
 
@@ -74,6 +75,10 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
     private String visitPackageDecl(JmmNode packageDecl, Void unused) {
         return "package " + String.join(".", packageDecl.getObjectAsList("path", String.class)) + ";\n";
+    }
+
+    private String visitImportDecl(JmmNode importDecl, Void unused) {
+        return "";
     }
 
 

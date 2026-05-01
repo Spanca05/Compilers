@@ -52,6 +52,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         addVisit(LENGTH_EXPR, this::visitLengthExpr);
         addVisit(METHOD_CALL_EXPR, this::visitMethodCallExpr);
         addVisit(THIS_EXPR, this::visitThisExpr);
+        addVisit(NEG_EXPR, this::visitNegExpr);
     }
 
     private OllirExprResult visitInteger(JmmNode node, Void unused) {
@@ -70,6 +71,14 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
 
     private OllirExprResult visitBinExpr(JmmNode node, Void unused) {
         var op = node.get("op");
+
+        if (op.equals("&&")) {
+            return visitAndExpr(node, unused);
+        }
+
+        if (op.equals("||")) {
+            return visitOrExpr(node, unused);
+        }
 
         var lhs = visit(node.getChild(0));
         var rhs = visit(node.getChild(1));
@@ -94,6 +103,118 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                 .append(rhs.getCode()).append(END_STMT);
 
         return new OllirExprResult(code, computation);
+    }
+
+    private OllirExprResult visitAndExpr(JmmNode node, Void unused) {
+        var lhs = visit(node.getChild(0));
+
+        var boolType = ".bool";
+        var temp = ollirTypes.nextTemp() + boolType;
+
+        var trueLabel = ollirTypes.nextTemp("and_true_");
+        var endLabel = ollirTypes.nextTemp("and_end_");
+
+        var computation = new StringBuilder();
+
+        computation.append(lhs.getComputation());
+
+        computation.append("if (")
+                .append(lhs.getCode())
+                .append(") goto")
+                .append(SPACE)
+                .append(trueLabel)
+                .append(END_STMT);
+
+        computation.append(temp)
+                .append(SPACE)
+                .append(ASSIGN)
+                .append(boolType)
+                .append(SPACE)
+                .append("false")
+                .append(boolType)
+                .append(END_STMT);
+
+        computation.append("goto")
+                .append(SPACE)
+                .append(endLabel)
+                .append(END_STMT);
+
+        computation.append(trueLabel)
+                .append(":")
+                .append("\n");
+
+        var rhs = visit(node.getChild(1));
+        computation.append(rhs.getComputation());
+
+        computation.append(temp)
+                .append(SPACE)
+                .append(ASSIGN)
+                .append(boolType)
+                .append(SPACE)
+                .append(rhs.getCode())
+                .append(END_STMT);
+
+        computation.append(endLabel)
+                .append(":")
+                .append("\n");
+
+        return new OllirExprResult(temp, computation.toString());
+    }
+
+    private OllirExprResult visitOrExpr(JmmNode node, Void unused) {
+        var lhs = visit(node.getChild(0));
+
+        var boolType = ".bool";
+        var temp = ollirTypes.nextTemp() + boolType;
+
+        var trueLabel = ollirTypes.nextTemp("or_true_");
+        var endLabel = ollirTypes.nextTemp("or_end_");
+
+        var computation = new StringBuilder();
+
+        computation.append(lhs.getComputation());
+
+        computation.append("if (")
+                .append(lhs.getCode())
+                .append(") goto")
+                .append(SPACE)
+                .append(trueLabel)
+                .append(END_STMT);
+
+        var rhs = visit(node.getChild(1));
+        computation.append(rhs.getComputation());
+
+        computation.append(temp)
+                .append(SPACE)
+                .append(ASSIGN)
+                .append(boolType)
+                .append(SPACE)
+                .append(rhs.getCode())
+                .append(END_STMT);
+
+        computation.append("goto")
+                .append(SPACE)
+                .append(endLabel)
+                .append(END_STMT);
+
+        computation.append(trueLabel)
+                .append(":")
+                .append("\n");
+
+        computation.append(temp)
+                .append(SPACE)
+                .append(ASSIGN)
+                .append(boolType)
+                .append(SPACE)
+                .append("true")
+                .append(boolType)
+                .append(END_STMT);
+
+        computation.append(endLabel)
+                .append(":")
+                .append("\n");
+
+        return new OllirExprResult(temp, computation.toString());
     }
 
     private OllirExprResult visitVarRef(JmmNode node, Void unused) {
@@ -191,8 +312,27 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
     }
 
     private OllirExprResult visitThisExpr(JmmNode node, Void unused) {
-        var child = visit(node.getChild(0));
+        var thisType = ollirTypes.toOllirType(types.getExprType(node));
+        return new OllirExprResult("this" + thisType);
+    }
 
-        return new OllirExprResult("");
+    private OllirExprResult visitNegExpr(JmmNode node, Void unused) {
+        var expr = visit(node.getChild(0));
+
+        var boolType = ".bool";
+        var temp = ollirTypes.nextTemp() + boolType;
+
+        var computation = new StringBuilder();
+        computation.append(expr.getComputation());
+        computation.append(temp)
+                .append(ASSIGN)
+                .append(boolType)
+                .append(SPACE)
+                .append("!.bool")
+                .append(SPACE)
+                .append(expr.getCode())
+                .append(END_STMT);
+
+        return new OllirExprResult(temp, computation.toString());
     }
 }

@@ -247,7 +247,7 @@ public class StatementsSemantics extends AnalysisVisitor {
                 return true;
             }
 
-            var superName = current.getSuper();
+            var superName = current.getSuperFullyQualifiedName();
             if (superName == null) {
                 return false;
             }
@@ -277,6 +277,12 @@ public class StatementsSemantics extends AnalysisVisitor {
         }
 
         var simpleName = className.substring(className.lastIndexOf('.') + 1);
+
+        imported = jmmTable.getImportedSymbolTable(simpleName);
+        if (imported.isPresent()) {
+            return imported;
+        }
+
         return jmmTable.getImplicitImport(simpleName);
     }
 
