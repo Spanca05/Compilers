@@ -59,6 +59,8 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         addVisit(RETURN_STMT, this::visitReturn);
         addVisit(ASSIGN_STMT, this::visitAssignStmt);
         addVisit(IMPORT_DECL, this::visitImportDecl);
+        addVisit(IF_STMT, this::visitIfStmt);
+        addVisit(BLOCK_STMT, this::visitBlockStmt);
 //        setDefaultVisit(this::defaultVisit);
     }
 
@@ -222,6 +224,56 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         }
 
         code.append(R_BRACKET);
+
+        return code.toString();
+    }
+
+    private String visitIfStmt(JmmNode node, Void unused) {
+        var cond = exprVisitor.visit(node.getChild(0));
+        var trueLabel = ollirTypes.nextTemp("if_true_");
+        var exitLabel = ollirTypes.nextTemp("if_exit_");
+
+        var code = new StringBuilder();
+
+        code.append(cond.getComputation());
+
+        code.append("if (")
+                .append(cond.getCode())
+                .append(") goto ")
+                .append(trueLabel)
+                .append(END_STMT);
+
+        if (node.getNumChildren() > 2) {
+            code.append(visit(node.getChild(2)));
+        }
+
+        code.append("goto")
+                .append(SPACE)
+                .append(exitLabel)
+                .append(END_STMT);
+
+
+        var ifBlock = visit(node.getChild(1));
+
+        code.append(trueLabel)
+                .append(":")
+                .append(NL);
+
+        code.append(ifBlock);
+
+        code.append(exitLabel)
+                .append(":")
+                .append(NL);
+
+        return code.toString();
+    }
+
+    private String visitBlockStmt(JmmNode node, Void unused) {
+        var code = new StringBuilder();
+
+        for (var child : node.getChildren()) {
+            code.append(visit(child));
+        }
 
         return code.toString();
     }
