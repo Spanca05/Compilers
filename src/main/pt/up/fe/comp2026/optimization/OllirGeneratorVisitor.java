@@ -64,6 +64,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         addVisit(BLOCK_STMT, this::visitBlockStmt);
         addVisit(WHILE_STMT, this::visitWhileStmt);
         addVisit(FOR_STMT, this::visitForStmt);
+        addVisit(DO_WHILE_STMT, this::visitDoWhileStmt);
 //        setDefaultVisit(this::defaultVisit);
     }
 
@@ -403,6 +404,30 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         code.append(exitLabel)
                 .append(":")
                 .append(NL);
+
+        return code.toString();
+    }
+
+    private String visitDoWhileStmt(JmmNode node, Void unused) {
+        var doBlock = visit(node.getChild(0));
+        var cond = exprVisitor.visit(node.getChild(1));
+        var beginLabel = ollirTypes.nextTemp("loop_begin_");
+
+        var code = new StringBuilder();
+
+        code.append(beginLabel)
+            .append(":")
+            .append(NL);
+
+        code.append(doBlock);
+
+        code.append(cond.getComputation());
+
+        code.append("if (")
+            .append(cond.getCode())
+            .append(") goto ")
+            .append(beginLabel)
+            .append(END_STMT);
 
         return code.toString();
     }
