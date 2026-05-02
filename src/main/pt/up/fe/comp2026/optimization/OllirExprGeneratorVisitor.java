@@ -235,11 +235,11 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
     private OllirExprResult visitArrAccessExpr(JmmNode node, Void unused) {
         var arrayResult = visit(node.getChild(0));
         var indexResult = visit(node.getChild(1));
+        StringBuilder code = new StringBuilder();
+        StringBuilder computation = new StringBuilder();
 
         var temp = ollirTypes.nextTemp();
         var resultType = ollirTypes.toOllirType(types.getExprType(node));
-        StringBuilder code = new StringBuilder();
-        StringBuilder computation = new StringBuilder();
 
         String access = arrayResult.getCode()
                 + "["
@@ -259,11 +259,38 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
     }
 
     private OllirExprResult visitArrayExpr(JmmNode node, Void unused) {
-        var child = visit(node.getChild(0));
         String ollirArrayType = ollirTypes.toOllirType(types.getExprType(node));
-        String code = "new(array," + child.getCode() + ")" + ollirArrayType;
-        String computation = child.getComputation();
-        return new OllirExprResult(code, computation);
+        StringBuilder code = new StringBuilder();
+        StringBuilder computation = new StringBuilder();
+        String ollirIntType = ollirTypes.toOllirType(TypeUtils.intType());
+        // new int[a][b][c] {}
+        if (!node.getChild(0).isInstance(ARGS)){
+            code.append("new(array");
+            for (var child : node.getChildren()){
+                var ollirChild = visit(child);
+                code.append(",").append(ollirChild.getCode());
+                computation.append(ollirChild.getComputation());
+            }
+            code.append(")").append(ollirArrayType);
+        } // new int[]{a,b,c}
+        else{
+            var child = node.getChild(0);
+            var temp = ollirTypes.nextTemp();
+            computation.append(temp).append(ollirArrayType).append(SPACE).append(ASSIGN)
+                    .append(ollirArrayType).append(SPACE)
+                    .append("new(array").append(",").append(child.getNumChildren()).append(ollirIntType)
+                    .append(")").append(ollirArrayType).append(END_STMT);
+
+            for (int i = 0; i < child.getNumChildren(); i++){
+                var ollirArg = visit(child.getChild(i));
+                computation.append(temp).append(ollirArrayType).append("[").append(i).append(ollirIntType).append("]").append(ollirIntType)
+                        .append(SPACE).append(ASSIGN).append(ollirIntType).append(SPACE).append(ollirArg.getCode()).append(END_STMT);
+
+            }
+            code.append(temp).append(ollirArrayType);
+        }
+
+        return new OllirExprResult(code.toString(), computation.toString());
     }
 
     private OllirExprResult visitLengthExpr(JmmNode node, Void unused) {

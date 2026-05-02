@@ -96,7 +96,6 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         if(isArrayStore(node)) {
             int numIndexes = node.getNumChildren() - 1;
             var value = exprVisitor.visit(node.getChild(numIndexes));
-
             var baseType = getVarType(varName);
             var targetType = getArrayIndexedType(baseType, numIndexes);
             var baseTypeStr = ollirTypes.toOllirType(baseType);
@@ -105,20 +104,29 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
             var lhs = new StringBuilder(ollirTypes.sanitizeId(varName)).append(baseTypeStr);
 
-            for (int i = 0; i < numIndexes; i++) {
-                var index = exprVisitor.visit(node.getChild(i));
+            for (int i = 1; i < numIndexes; i++) {
+                var index = exprVisitor.visit(node.getChild(i - 1));
                 code.append(index.getComputation());
 
-                var indexTemp = ollirTypes.nextTemp() + intTypeStr;
-                code.append(indexTemp).append(SPACE).append(ASSIGN).append(intTypeStr)
-                    .append(SPACE).append(index.getCode()).append(END_STMT);
+                var innerType = getArrayIndexedType(baseType, i);
+                var innerTypeStr = ollirTypes.toOllirType(innerType);
+                var arrayTemp = ollirTypes.nextTemp() + innerTypeStr;
+                code.append(arrayTemp).append(SPACE).append(ASSIGN).append(innerTypeStr)
+                        .append(SPACE).append(lhs)
+                        .append("[").append(index.getCode()).append("]")
+                        .append(innerTypeStr).append(END_STMT);
 
-                lhs.append("[").append(indexTemp).append("]");
+                lhs = new StringBuilder(arrayTemp);
             }
 
+            var lastIndex = exprVisitor.visit(node.getChild(numIndexes - 1));
+            code.append(lastIndex.getComputation());
             code.append(value.getComputation());
-            code.append(lhs).append(targetTypeStr).append(SPACE).append(ASSIGN)
-                .append(targetTypeStr).append(SPACE).append(value.getCode()).append(END_STMT);
+
+            code.append(lhs)
+                    .append("[").append(lastIndex.getCode()).append("]")
+                    .append(targetTypeStr).append(SPACE).append(ASSIGN)
+                    .append(targetTypeStr).append(SPACE).append(value.getCode()).append(END_STMT);
 
             return code.toString();
         }
