@@ -3,6 +3,7 @@ package pt.up.fe.comp2026.optimization;
 import pt.up.fe.comp.jmm.analysis.table.MethodSymbol;
 import pt.up.fe.comp.jmm.analysis.table.Signature;
 import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
+import pt.up.fe.comp.jmm.analysis.table.reflection.Importer;
 import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmArrayType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmClassType;
@@ -328,9 +329,19 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         StringBuilder code = new StringBuilder();
         StringBuilder computation = new StringBuilder();
         var method = table.getMethods(mName);
+        var importer = Importer.fromThisClassPath();
+        refName = "";
+        if (method.isEmpty()){
+            for(var impor : table.getImports()){
+                var impName = importer.loadImplicit(impor);
+                var impTable = importer.getSymbolTableOf(impName.get());
+                refName = impor;
+                method = impTable.getMethods(mName);
+            }
+        }
         var ollirRetType = ollirTypes.toOllirType(method.getFirst().returnType());
         var child = node.getChild(0);
-        if(child.isInstance(THIS_EXPR)){
+        if(child.isInstance(THIS_EXPR) && refName.isEmpty()){
             refName = "this";
         }
 
