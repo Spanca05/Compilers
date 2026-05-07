@@ -324,45 +324,64 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
 
     private OllirExprResult visitMethodCallExpr(JmmNode node, Void unused) {
         String mName = node.get("name");
-        String refName = "";
-        var temp = ollirTypes.nextTemp();
         StringBuilder code = new StringBuilder();
         StringBuilder computation = new StringBuilder();
+
+        var temp = ollirTypes.nextTemp();
+        var receiverNode = node.getChild(0);
+        var receiver = visit(receiverNode);
+
+        computation.append(receiver.getComputation());
+
+        String receiverCode = receiver.getCode();
         var method = table.getMethods(mName);
-        var importer = Importer.fromThisClassPath();
-        refName = "";
-        if (method.isEmpty()){
-            for(var impor : table.getImports()){
+
+        if (method.isEmpty()) {
+            var importer = Importer.fromThisClassPath();
+            for (var impor : table.getImports()) {
                 var impName = importer.loadImplicit(impor);
-                var impTable = importer.getSymbolTableOf(impName.get());
-                refName = impor;
-                method = impTable.getMethods(mName);
+                if (impName.isPresent()) {
+                    var impTable = importer.getSymbolTableOf(impName.get());
+                    method = impTable.getMethods(mName);
+                    if (!method.isEmpty()) {
+                        break;
+                    }
+                }
             }
         }
+
         var ollirRetType = ollirTypes.toOllirType(method.getFirst().returnType());
-        var child = node.getChild(0);
-        if(child.isInstance(THIS_EXPR) && refName.isEmpty()){
-            refName = "this";
-        }
-
-
         var argstr = new StringBuilder();
-        if(node.getNumChildren() > 1){
-            var args = node.getChild(1);
 
-            for (var arg : args.getChildren()){
+        if (node.getNumChildren() > 1) {
+            var args = node.getChild(1);
+            for (var arg : args.getChildren()) {
                 var ollirArg = visit(arg);
-                argstr.append(",").append(ollirArg.getCode());
                 computation.append(ollirArg.getComputation());
+                argstr.append(", ").append(ollirArg.getCode());
             }
         }
-        computation.append(temp).append(ollirRetType).append(SPACE).append(ASSIGN).append(ollirRetType).append(SPACE)
-                .append("invokevirtual(").append(refName).append(",").append("\"").append(mName).append("\"").append(argstr)
-                .append(")").append(ollirRetType).append(END_STMT);
+
+        computation.append(temp)
+                .append(ollirRetType)
+                .append(SPACE)
+                .append(ASSIGN)
+                .append(ollirRetType)
+                .append(SPACE)
+                .append("invokevirtual(")
+                .append(receiverCode)
+                .append(", ")
+                .append("\"")
+                .append(mName)
+                .append("\"")
+                .append(argstr)
+                .append(")")
+                .append(ollirRetType)
+                .append(END_STMT);
 
         code.append(temp).append(ollirRetType);
 
-        return new OllirExprResult(code.toString(),computation.toString());
+        return new OllirExprResult(code.toString(), computation.toString());
     }
 
     private OllirExprResult visitThisExpr(JmmNode node, Void unused) {
