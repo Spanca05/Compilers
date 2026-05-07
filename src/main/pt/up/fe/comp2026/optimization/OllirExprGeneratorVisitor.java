@@ -1,5 +1,6 @@
 package pt.up.fe.comp2026.optimization;
 
+import pt.up.fe.comp.jmm.analysis.table.MethodSymbol;
 import pt.up.fe.comp.jmm.analysis.table.Signature;
 import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
 import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
@@ -32,6 +33,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
 
     private final TypeUtils types;
     private final OptUtils ollirTypes;
+    public MethodSymbol currentMethod;
 
 
     public OllirExprGeneratorVisitor(SymbolTable table, OptUtils ollirTypes) {
@@ -55,6 +57,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         addVisit(THIS_EXPR, this::visitThisExpr);
         addVisit(NEG_EXPR, this::visitNegExpr);
         addVisit(NEW_CLASS_EXPR, this::visitNewClassExpr);
+        addVisit(UNARY_EXPR, this::visitUnaryExpr);
     }
 
     private OllirExprResult visitInteger(JmmNode node, Void unused) {
@@ -225,6 +228,16 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         JmmType type = types.getExprType(node);
         String ollirType = ollirTypes.toOllirType(type);
 
+        if (table.getField(id).isPresent()
+                && currentMethod.getLocalVariable(id).isEmpty()
+                && currentMethod.getParameter(id).isEmpty()) {
+            var temp = ollirTypes.nextTemp();
+            String computation = temp + ollirType
+                    + SPACE + ASSIGN + ollirType
+                    + SPACE + "getfield(this, " + id + ollirType + ")" + ollirType
+                    + END_STMT;
+            return new OllirExprResult(temp + ollirType, computation);
+        }
 
         String code = id + ollirType;
 
@@ -321,19 +334,20 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
             refName = "this";
         }
 
-        computation.append(temp).append(ollirRetType).append(SPACE).append(ASSIGN).append(ollirRetType).append(SPACE)
-                .append("invokevirtual(").append(refName).append(",").append("\"").append(mName).append("\"");
 
+        var argstr = new StringBuilder();
         if(node.getNumChildren() > 1){
             var args = node.getChild(1);
 
             for (var arg : args.getChildren()){
                 var ollirArg = visit(arg);
-                computation.append(",").append(ollirArg.getCode());
+                argstr.append(",").append(ollirArg.getCode());
+                computation.append(ollirArg.getComputation());
             }
         }
-
-        computation.append(")").append(ollirRetType).append(END_STMT);
+        computation.append(temp).append(ollirRetType).append(SPACE).append(ASSIGN).append(ollirRetType).append(SPACE)
+                .append("invokevirtual(").append(refName).append(",").append("\"").append(mName).append("\"").append(argstr)
+                .append(")").append(ollirRetType).append(END_STMT);
 
         code.append(temp).append(ollirRetType);
 
@@ -391,5 +405,42 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
             .append(END_STMT);
 
         return new OllirExprResult(code, computation.toString());
+    }
+
+    private OllirExprResult visitUnaryExpr(JmmNode node, Void unused) {
+        var operand = visit(node.getChild(0));
+        var type = types.getExprType(node);
+        var typeStr = ollirTypes.toOllirType(type);
+        var temp = ollirTypes.nextTemp();
+        var op = node.get("op");
+
+        var code = new StringBuilder();
+        var computation = new StringBuilder();
+        computation.append(operand.getComputation());
+
+        if (op.equals("-") || op.equals("+")) {
+            computation.append(temp).append(typeStr)
+                    .append(SPACE).append(ASSIGN).append(typeStr)
+                    .append(SPACE).append("0").append(typeStr)
+                    .append(SPACE).append(op).append(typeStr).append(SPACE)
+                    .append(operand.getCode()).append(END_STMT);
+            code.append(temp).append(typeStr);
+        } else if (op.equals("++")){
+            computation.append(operand.getCode())
+                    .append(SPACE).append(ASSIGN).append(typeStr)
+                    .append(SPACE).append(operand.getCode())
+                    .append(SPACE).append("+.i32").append(SPACE)
+                    .append("1").append(typeStr).append(END_STMT);
+            code.append(operand.getCode());
+        } else if (op.equals("--")){
+            computation.append(operand.getCode())
+                    .append(SPACE).append(ASSIGN).append(typeStr)
+                    .append(SPACE).append(operand.getCode())
+                    .append(SPACE).append("-.i32").append(SPACE)
+                    .append("1").append(typeStr).append(END_STMT);
+            code.append(operand.getCode());
+        }
+
+        return new OllirExprResult(code.toString(), computation.toString());
     }
 }

@@ -65,9 +65,9 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         addVisit(WHILE_STMT, this::visitWhileStmt);
         addVisit(FOR_STMT, this::visitForStmt);
         addVisit(DO_WHILE_STMT, this::visitDoWhileStmt);
+        addVisit(EXPR_STMT, this::visitExprStmt);
 //        setDefaultVisit(this::defaultVisit);
     }
-
 
     private String simpleVarDecl(JmmNode varDecl, Void unused) {
         return ollirTypes.sanitizeId(varDecl.get("name")) + ollirTypes.toOllirType(varDecl.getObject("typeNode", JmmNode.class)) + ";";
@@ -137,9 +137,18 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         var lhsTypeStr = ollirTypes.toOllirType(lhsType);
 
         code.append(rhs.getComputation());
-        code.append(ollirTypes.sanitizeId(varName)).append(lhsTypeStr).append(SPACE)
-            .append(ASSIGN).append(lhsTypeStr).append(SPACE)
-            .append(rhs.getCode()).append(END_STMT);
+        if (table.getField(varName).isPresent()
+                && currentMethod.getLocalVariable(varName).isEmpty()
+                && currentMethod.getParameter(varName).isEmpty()) {
+            code.append("putfield(this, ")
+                    .append(ollirTypes.sanitizeId(varName)).append(lhsTypeStr)
+                    .append(", ").append(rhs.getCode()).append(").V")
+                    .append(END_STMT);
+        } else {
+            code.append(ollirTypes.sanitizeId(varName)).append(lhsTypeStr).append(SPACE)
+                    .append(ASSIGN).append(lhsTypeStr).append(SPACE)
+                    .append(rhs.getCode()).append(END_STMT);
+        }
 
         return code.toString();
     }
@@ -172,6 +181,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
     private String visitMethodDecl(JmmNode node, Void unused) {
 
         currentMethod = table.getMethod(TypeUtils.with(table).getMethodDeclSignature(node)).orElseThrow();
+        exprVisitor.currentMethod = currentMethod;
 
         StringBuilder code = new StringBuilder(".method ");
 
@@ -234,6 +244,13 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         code.append(NL);
         code.append(NL);
 
+        for (var field : table.getFields()) {
+            code.append(".field ")
+                    .append(field.name())
+                    .append(ollirTypes.toOllirType(field.type()))
+                    .append(END_STMT);
+        }
+        code.append(NL);
 
         code.append(buildConstructor());
         code.append(NL);
@@ -444,6 +461,16 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
             .append(") goto ")
             .append(beginLabel)
             .append(END_STMT);
+
+        return code.toString();
+    }
+
+
+    private String visitExprStmt(JmmNode node, Void unused) {
+        var expr = exprVisitor.visit(node.getChild(0));
+        var code = new StringBuilder();
+
+        code.append(expr.getComputation());
 
         return code.toString();
     }
