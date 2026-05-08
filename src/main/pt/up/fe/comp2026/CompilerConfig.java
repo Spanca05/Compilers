@@ -21,10 +21,8 @@ public class CompilerConfig {
         shortToLong.put("c", CompilerConfig.CLASSPATH);
     }
 
-
     public static Optional<File> getInputFile(Map<String, String> config) {
         var inputFile = config.get(INPUT_FILE);
-
 
         if (inputFile == null) {
             return Optional.empty();
@@ -44,7 +42,6 @@ public class CompilerConfig {
     public static String getClasspath(Map<String, String> config) {
         return config.getOrDefault(CLASSPATH, ".");
     }
-
 
     public static Map<String, String> getDefault() {
 
@@ -114,6 +111,5 @@ public class CompilerConfig {
 
         return config;
     }
-
 
 }

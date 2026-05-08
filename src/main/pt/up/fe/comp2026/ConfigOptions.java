@@ -6,7 +6,6 @@ import java.util.Optional;
 
 public class ConfigOptions {
 
-
     private static final String INPUT_FILE = "inputFile";
     private static final String OPTIMIZE = "optimize";
     private static final String REGISTER = "registerAllocation";
@@ -35,14 +34,12 @@ public class ConfigOptions {
     public static Optional<File> getInputFile(Map<String, String> config) {
         var inputFile = config.get(INPUT_FILE);
 
-
         if (inputFile == null) {
             return Optional.empty();
         }
 
         return Optional.of(new File(inputFile));
     }
-
 
     public static boolean getOptimize(Map<String, String> config) {
         return Boolean.parseBoolean(config.getOrDefault(OPTIMIZE, "false"));
