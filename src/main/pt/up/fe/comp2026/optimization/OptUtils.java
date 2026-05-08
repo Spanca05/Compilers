@@ -59,12 +59,32 @@ public class OptUtils {
     }
 
     public String toOllirType(JmmType type) {
-            return "." + toPrimitiveOllirType((JmmPrimitiveType) type);
+        if (type instanceof JmmArrayType arrayType) {
+            var dimensionsLeft = arrayType.dimension();
+            var ollirType = new StringBuilder();
+            while (dimensionsLeft > 0) {
+                ollirType.append(".array");
+                dimensionsLeft--;
+            }
+            return ollirType.append(toOllirType(arrayType.itemType())).toString();
+        }
+        if (type instanceof JmmClassType classType) {
+            return "." +classType.name();
+        }
+        return "." + toPrimitiveOllirType((JmmPrimitiveType) type);
     }
 
     private String toPrimitiveOllirType(JmmPrimitiveType type) {
-        System.out.println("[TODO] OptUtils.toPrimitiveOllirType(): Assumes it is always int, needs to be expanded");
-        return "i32";
+        return switch (type) {
+            case INT -> "i32";
+            case BOOLEAN -> "bool";
+            case VOID -> "V";
+            case BYTE, CHAR -> "i8";
+            case SHORT -> "i16";
+            case LONG -> "i64";
+            case FLOAT -> "f32";
+            case DOUBLE -> "f64";
+        };
     }
 
     public String sanitizeId(String id) {

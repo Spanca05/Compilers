@@ -116,6 +116,6 @@ expr:
 	| value = BOOLEAN											# BooleanLiteral
 	| name = ID													# VarRefExpr
 	| THIS														# ThisExpr
-	| op = '-' '-'? expr										# UnaryExpr
-	| op = '+' '+'? expr										# UnaryExpr
+    | op=('--' | '-') expr                                      # UnaryExpr
+    | op=('++' | '+') expr                                      # UnaryExpr
 	;
