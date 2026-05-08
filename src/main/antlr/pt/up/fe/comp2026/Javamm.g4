@@ -5,38 +5,38 @@ grammar Javamm;
 }
 
 // -----------------------------------------------------------------------------
-// LEXER RULES
+// -- LEXER RULES
 // -----------------------------------------------------------------------------
 
 // Keywords
-CLASS: 'class';
-INT: 'int';
-FLOAT: 'float';
-DOUBLE: 'double';
-STATIC: 'static';
-RETURN: 'return';
-PACKAGE: 'package';
-IMPORT: 'import';
-EXTENDS: 'extends';
-PUBLIC: 'public';
-PROTECTED: 'protected';
-PRIVATE: 'private';
-SWITCH: 'switch';
-IF: 'if';
-ELSE: 'else';
-DO: 'do';
-WHILE: 'while';
-FOR: 'for';
 BREAK: 'break';
+CLASS: 'class';
 CONTINUE: 'continue';
+DO: 'do';
+DOUBLE: 'double';
+ELSE: 'else';
 ENUM: 'enum';
+EXTENDS: 'extends';
+FLOAT: 'float';
+FOR: 'for';
+IF: 'if';
+IMPORT: 'import';
+INT: 'int';
 NEW: 'new';
 NULL: 'null';
+PACKAGE: 'package';
+PRIVATE: 'private';
+PROTECTED: 'protected';
+PUBLIC: 'public';
+RETURN: 'return';
+STATIC: 'static';
+SWITCH: 'switch';
 THIS: 'this';
+WHILE: 'while';
 
 // Literals
-INTEGER: '0' | [1-9][0-9]*;
 BOOLEAN: 'false' | 'true';
+INTEGER: '0' | [1-9][0-9]*;
 VOID: 'void';
 
 // Identifiers
@@ -46,11 +46,11 @@ ID: [a-zA-Z$_][a-zA-Z0-9$_]*;
 WS: [ \t\n\r\f]+ -> skip;
 
 // Comments
-SINGLE_COMMENT: '//' ~[\r\n]* -> skip;
 BLOCK_COMMENT: '/*' .*? '*/' -> skip;
+SINGLE_COMMENT: '//' ~[\r\n]* -> skip;
 
 // -----------------------------------------------------------------------------
-// PARSER RULES
+// -- PARSER RULES
 // -----------------------------------------------------------------------------
 
 program: packageDecl importDecl* classNode = classDecl EOF;
