@@ -25,13 +25,11 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
     private final OptUtils ollirTypes;
     public MethodSymbol currentMethod;
 
-
     public OllirExprGeneratorVisitor(SymbolTable table, OptUtils ollirTypes) {
         this.table = table;
         this.types = new TypeUtils(table);
         this.ollirTypes = ollirTypes; // We need to pass ollirTypes, to ensure labels are unique
     }
-
 
     @Override
     protected void buildVisitor() {
@@ -251,8 +249,9 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                 + "]"
                 + resultType;
 
-        computation.append(arrayResult.getComputation()).append(indexResult.getComputation()).append(temp).
-                append(resultType).append(SPACE).append(ASSIGN).append(resultType).append(SPACE).append(access).append(END_STMT);
+        computation.append(arrayResult.getComputation()).append(indexResult.getComputation()).append(temp)
+                .append(resultType).append(SPACE).append(ASSIGN).append(resultType).append(SPACE).append(access)
+                .append(END_STMT);
         code.append(temp).append(resultType);
 
         return new OllirExprResult(code.toString(), computation.toString());
@@ -269,26 +268,28 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         String ollirIntType = ollirTypes.toOllirType(TypeUtils.intType());
         // new int[a][b][c] {}
         var temp = ollirTypes.nextTemp();
-        if (!node.getChild(0).isInstance(ARGS)){
+        if (!node.getChild(0).isInstance(ARGS)) {
             code.append("new(array");
-            for (var child : node.getChildren()){
+            for (var child : node.getChildren()) {
                 var ollirChild = visit(child);
                 code.append(",").append(ollirChild.getCode());
                 computation.append(ollirChild.getComputation());
             }
             code.append(")").append(ollirArrayType);
         } // new int[]{a,b,c}
-        else{
+        else {
             var child = node.getChild(0);
             computation.append(temp).append(ollirArrayType).append(SPACE).append(ASSIGN)
                     .append(ollirArrayType).append(SPACE)
                     .append("new(array").append(",").append(child.getNumChildren()).append(ollirIntType)
                     .append(")").append(ollirArrayType).append(END_STMT);
 
-            for (int i = 0; i < child.getNumChildren(); i++){
+            for (int i = 0; i < child.getNumChildren(); i++) {
                 var ollirArg = visit(child.getChild(i));
-                computation.append(temp).append(ollirArrayType).append("[").append(i).append(ollirIntType).append("]").append(ollirIntType)
-                        .append(SPACE).append(ASSIGN).append(ollirIntType).append(SPACE).append(ollirArg.getCode()).append(END_STMT);
+                computation.append(temp).append(ollirArrayType).append("[").append(i).append(ollirIntType).append("]")
+                        .append(ollirIntType)
+                        .append(SPACE).append(ASSIGN).append(ollirIntType).append(SPACE).append(ollirArg.getCode())
+                        .append(END_STMT);
 
             }
             code.append(temp).append(ollirArrayType);
@@ -306,7 +307,8 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         StringBuilder computation = new StringBuilder();
         StringBuilder code = new StringBuilder();
 
-        computation.append(temp).append(ollirIntType).append(SPACE).append(ASSIGN).append(ollirIntType).append(SPACE).append(length).append(END_STMT);
+        computation.append(temp).append(ollirIntType).append(SPACE).append(ASSIGN).append(ollirIntType).append(SPACE)
+                .append(length).append(END_STMT);
         code.append(temp).append(ollirIntType);
 
         return new OllirExprResult(code.toString(), computation.toString());
@@ -352,7 +354,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
             }
         }
         var callType = method.getFirst().isStatic() ? "invokestatic(" : "invokevirtual(";
-        if (method.getFirst().isStatic()){
+        if (method.getFirst().isStatic()) {
             receiverCode = receiverCode.substring(receiverCode.lastIndexOf(".") + 1);
         }
         computation.append(temp)
@@ -412,7 +414,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
             }
         }
         var callType = method.getFirst().isStatic() ? "invokestatic(" : "invokevirtual(";
-        if (method.getFirst().isStatic()){
+        if (method.getFirst().isStatic()) {
             receiverCode = receiverCode.substring(receiverCode.lastIndexOf(".") + 1);
         }
         computation.append(temp)
@@ -483,10 +485,10 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                 .append(END_STMT);
 
         computation.append("invokespecial(")
-            .append(code)
-            .append(", \"<init>\"");
-        if(node.getNumChildren() >= 1){
-            for (var arg : node.getChild(0).getChildren()){
+                .append(code)
+                .append(", \"<init>\"");
+        if (node.getNumChildren() >= 1) {
+            for (var arg : node.getChild(0).getChildren()) {
                 var ollirArg = visit(arg);
                 computation.append(",").append(ollirArg.getCode());
             }
@@ -516,14 +518,14 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                     .append(SPACE).append(op).append(typeStr).append(SPACE)
                     .append(operand.getCode()).append(END_STMT);
             code.append(temp).append(typeStr);
-        } else if (op.equals("++")){
+        } else if (op.equals("++")) {
             computation.append(operand.getCode())
                     .append(SPACE).append(ASSIGN).append(typeStr)
                     .append(SPACE).append(operand.getCode())
                     .append(SPACE).append("+.i32").append(SPACE)
                     .append("1").append(typeStr).append(END_STMT);
             code.append(operand.getCode());
-        } else if (op.equals("--")){
+        } else if (op.equals("--")) {
             computation.append(operand.getCode())
                     .append(SPACE).append(ASSIGN).append(typeStr)
                     .append(SPACE).append(operand.getCode())
