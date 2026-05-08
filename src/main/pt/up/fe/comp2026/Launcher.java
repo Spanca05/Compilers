@@ -36,41 +36,40 @@ public class Launcher {
         System.out.println("AST:");
         System.out.println(parserResult.rootNode().toTree());
 
-
-
-//        // Semantic Analysis stage
-//        JmmAnalysisImpl sema = new JmmAnalysisImpl();
-//        JmmSemanticsResult semanticsResult = sema.semanticAnalysis(parserResult);
-//
-//        System.out.println("Annotated AST:");
-//        System.out.println(semanticsResult.getRootNode().toTree());
-//
-//        semanticsResult.throwIfErrors();
-//
-//        // Optimization stage
-//        JmmOptimizationImpl ollirGen = new JmmOptimizationImpl();
-//
-//        // AST-based optimizations
-//        if(semanticsResult.config().get("optimize") != null && semanticsResult.config().get("optimize").equals("true")){
-//            semanticsResult = ollirGen.optimize(semanticsResult);
-//
-//            System.out.println("Optimized AST:");
-//            System.out.println("AST: " + semanticsResult.getRootNode().toTree());
-//        }
-//
-//        OllirResult ollirResult = ollirGen.toOllir(semanticsResult);
-//        ollirResult.throwIfErrors();
-//
-//        // Print OLLIR code
-//        System.out.println(ollirResult.getOllirCode());
-//
-//        // Code generation stage
-//        JasminBackendImpl jasminGen = new JasminBackendImpl();
-//        JasminResult jasminResult = jasminGen.toJasmin(ollirResult);
-//        jasminResult.throwIfErrors();
-//
-//        // Print Jasmin code
-//        System.out.println(jasminResult.getJasminCode());
+        // // Semantic Analysis stage
+        // JmmAnalysisImpl sema = new JmmAnalysisImpl();
+        // JmmSemanticsResult semanticsResult = sema.semanticAnalysis(parserResult);
+        //
+        // System.out.println("Annotated AST:");
+        // System.out.println(semanticsResult.getRootNode().toTree());
+        //
+        // semanticsResult.throwIfErrors();
+        //
+        // // Optimization stage
+        // JmmOptimizationImpl ollirGen = new JmmOptimizationImpl();
+        //
+        // // AST-based optimizations
+        // if(semanticsResult.config().get("optimize") != null &&
+        // semanticsResult.config().get("optimize").equals("true")){
+        // semanticsResult = ollirGen.optimize(semanticsResult);
+        //
+        // System.out.println("Optimized AST:");
+        // System.out.println("AST: " + semanticsResult.getRootNode().toTree());
+        // }
+        //
+        // OllirResult ollirResult = ollirGen.toOllir(semanticsResult);
+        // ollirResult.throwIfErrors();
+        //
+        // // Print OLLIR code
+        // System.out.println(ollirResult.getOllirCode());
+        //
+        // // Code generation stage
+        // JasminBackendImpl jasminGen = new JasminBackendImpl();
+        // JasminResult jasminResult = jasminGen.toJasmin(ollirResult);
+        // jasminResult.throwIfErrors();
+        //
+        // // Print Jasmin code
+        // System.out.println(jasminResult.getJasminCode());
     }
 
 }
