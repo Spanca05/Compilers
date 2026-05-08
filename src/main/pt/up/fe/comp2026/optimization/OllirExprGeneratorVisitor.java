@@ -1,24 +1,13 @@
 package pt.up.fe.comp2026.optimization;
 
 import pt.up.fe.comp.jmm.analysis.table.MethodSymbol;
-import pt.up.fe.comp.jmm.analysis.table.Signature;
 import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
 import pt.up.fe.comp.jmm.analysis.table.reflection.Importer;
 import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
-import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmArrayType;
-import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmClassType;
 import pt.up.fe.comp.jmm.ast.AJmmVisitor;
 import pt.up.fe.comp.jmm.ast.JmmNode;
-import pt.up.fe.comp.jmm.ast.Kind;
-import pt.up.fe.comp2026.ast.AccessType;
 import pt.up.fe.comp2026.ast.TypeUtils;
 import pt.up.fe.comp2026.jmm.ast.JmmAttributes;
-import pt.up.fe.comp2026.jmm.ast.JmmKind;
-
-import java.io.Console;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import static pt.up.fe.comp2026.jmm.ast.JmmKind.*;
 
 /**
