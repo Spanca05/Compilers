@@ -106,8 +106,8 @@ expr:
 	| expr op = ('<' | '>' | '<=' | '>=' | '==' | '!=') expr	# BinaryExpr
 	| expr op = ('&&' | '||') expr								# BinaryExpr
 	| name = ID '(' args? ')'									# FunctionCall
-	| NEW INT '[' ']' '{' args? '}'								# ArrayExpr //
-	| NEW INT (open+='[' expr ']')+ (open+='[' ']')*            # ArrayExpr //
+	| NEW INT '[' ']' '{' args? '}'								# ArrayExpr
+	| NEW INT (open += '[' expr ']')+ (open += '[' ']')*		# ArrayExpr
 	| NEW name = ID '(' args? ')'								# NewClassExpr
 	| '!' expr													# NegExpr
 	| '(' expr ')'												# ParentesesExpr
@@ -115,5 +115,6 @@ expr:
 	| value = BOOLEAN											# BooleanLiteral
 	| name = ID													# VarRefExpr
 	| THIS														# ThisExpr
-	| op ='-' '-'? expr												# UnaryExpr
-	| op ='+' '+'? expr												# UnaryExpr;
+	| op = '-' '-'? expr										# UnaryExpr
+	| op = '+' '+'? expr										# UnaryExpr
+	;
