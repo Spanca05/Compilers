@@ -55,6 +55,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         addVisit(ARRAY_EXPR, this::visitArrayExpr);
         addVisit(LENGTH_EXPR, this::visitLengthExpr);
         addVisit(METHOD_CALL_EXPR, this::visitMethodCallExpr);
+        addVisit(FUNCTION_CALL, this::visitFunctionCall);
         addVisit(THIS_EXPR, this::visitThisExpr);
         addVisit(NEG_EXPR, this::visitNegExpr);
         addVisit(NEW_CLASS_EXPR, this::visitNewClassExpr);
@@ -355,6 +356,66 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
 
         if (node.getNumChildren() > 1) {
             var args = node.getChild(1);
+            for (var arg : args.getChildren()) {
+                var ollirArg = visit(arg);
+                computation.append(ollirArg.getComputation());
+                argstr.append(", ").append(ollirArg.getCode());
+            }
+        }
+        var callType = method.getFirst().isStatic() ? "invokestatic(" : "invokevirtual(";
+        if (method.getFirst().isStatic()){
+            receiverCode = receiverCode.substring(receiverCode.lastIndexOf(".") + 1);
+        }
+        computation.append(temp)
+                .append(ollirRetType)
+                .append(SPACE)
+                .append(ASSIGN)
+                .append(ollirRetType)
+                .append(SPACE)
+                .append(callType)
+                .append(receiverCode)
+                .append(", ")
+                .append("\"")
+                .append(mName)
+                .append("\"")
+                .append(argstr)
+                .append(")")
+                .append(ollirRetType)
+                .append(END_STMT);
+
+        code.append(temp).append(ollirRetType);
+
+        return new OllirExprResult(code.toString(), computation.toString());
+    }
+
+    private OllirExprResult visitFunctionCall(JmmNode node, Void unused) {
+        String mName = node.get("name");
+        StringBuilder code = new StringBuilder();
+        StringBuilder computation = new StringBuilder();
+
+        var temp = ollirTypes.nextTemp();
+        var receiverCode = "this." + table.getClassName();
+        var method = table.getMethods(mName);
+
+        if (method.isEmpty()) {
+            var importer = Importer.fromThisClassPath();
+            for (var impor : table.getImports()) {
+                var impName = importer.loadImplicit(impor);
+                if (impName.isPresent()) {
+                    var impTable = importer.getSymbolTableOf(impName.get());
+                    method = impTable.getMethods(mName);
+                    if (!method.isEmpty()) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        var ollirRetType = ollirTypes.toOllirType(method.getFirst().returnType());
+        var argstr = new StringBuilder();
+
+        if (node.getNumChildren() > 0) {
+            var args = node.getChild(0);
             for (var arg : args.getChildren()) {
                 var ollirArg = visit(arg);
                 computation.append(ollirArg.getComputation());
