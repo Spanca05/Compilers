@@ -50,7 +50,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         addVisit(BINARY_EXPR, this::visitBinExpr);
         addVisit(INTEGER_LITERAL, this::visitInteger);
         addVisit(BOOLEAN_LITERAL, this::visitBoolean);
-        addVisit(ARRAY_ACESS_EXPR, this::visitArrAccessExpr);
+        addVisit(ARRAY_ACCESS_EXPR, this::visitArrAccessExpr);
         addVisit(PARENTESES_EXPR, this::visitParenthesesExpr);
         addVisit(ARRAY_EXPR, this::visitArrayExpr);
         addVisit(LENGTH_EXPR, this::visitLengthExpr);

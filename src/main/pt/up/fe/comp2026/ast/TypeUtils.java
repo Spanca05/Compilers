@@ -98,7 +98,7 @@ public class TypeUtils {
             case NEG_EXPR -> getNegExprType(expr);
             case PARENTESES_EXPR -> getParentesesExprType(expr);
             case THIS_EXPR -> getThisExprType(expr);
-            case ARRAY_ACESS_EXPR -> getArrayAccessExprType(expr);
+            case ARRAY_ACCESS_EXPR -> getArrayAccessExprType(expr);
             case LENGTH_EXPR -> getLengthExprType(expr);
             case UNARY_EXPR -> getUnaryExprType(expr);
             case FUNCTION_CALL -> getFunctionCallExprType(expr);
