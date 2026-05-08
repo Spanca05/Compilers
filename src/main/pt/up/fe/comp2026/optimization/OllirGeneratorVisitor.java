@@ -219,6 +219,10 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
             code.append(stmtsCode);
         }
 
+        if(node.getChildren(RETURN_STMT).isEmpty()){
+            code.append("ret.V;\n");
+        }
+
         code.append(R_BRACKET);
         code.append(NL);
 
@@ -483,7 +487,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
                 invokespecial(this."%s", "<init>").V;""".formatted("<init>", table.getSuper() != null ? table.getSuper() : "java.lang.Object"));
 
         for (var fieldNode : children) {
-            if (fieldNode.getNumChildren() > 1) { // has initializer
+            if (fieldNode.getNumChildren() > 1) {
                 var valueResult = exprVisitor.visit(fieldNode.getChild(1));
                 var fieldName = fieldNode.get("name");
                 var fieldType = ollirTypes.toOllirType(table.getField(fieldName).get().type());

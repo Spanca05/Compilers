@@ -279,6 +279,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         StringBuilder computation = new StringBuilder();
         String ollirIntType = ollirTypes.toOllirType(TypeUtils.intType());
         // new int[a][b][c] {}
+        var temp = ollirTypes.nextTemp();
         if (!node.getChild(0).isInstance(ARGS)){
             code.append("new(array");
             for (var child : node.getChildren()){
@@ -290,7 +291,6 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         } // new int[]{a,b,c}
         else{
             var child = node.getChild(0);
-            var temp = ollirTypes.nextTemp();
             computation.append(temp).append(ollirArrayType).append(SPACE).append(ASSIGN)
                     .append(ollirArrayType).append(SPACE)
                     .append("new(array").append(",").append(child.getNumChildren()).append(ollirIntType)
