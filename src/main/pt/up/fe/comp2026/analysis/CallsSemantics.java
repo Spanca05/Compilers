@@ -90,8 +90,8 @@ public class CallsSemantics extends AnalysisVisitor {
         var methodExists = targetTable.isPresent() && (
                 targetTable.get() == table
                         ? existsInCurrentClassOrSuperclass(signature, table)
-                        : targetTable.get().getMethod(signature).isPresent() || targetTable.get().getMethods().stream()
-                        .anyMatch(m -> m.name().equals(methodName) && m.parameters().size() == argTypes.size())
+                        : targetTable.get().getMethod(signature).isPresent()
+                        || hasCompatibleMethod(targetTable.get(), methodName, argTypes, table)
         );
 
         if (!methodExists) {
@@ -147,7 +147,9 @@ public class CallsSemantics extends AnalysisVisitor {
                     : ((JmmSymbolTable) table).getImplicitImport(className);
         }
 
-        if (!isCurrentClass && targetTable.isPresent() && targetTable.get().getMethod(constructorSignature).isEmpty()) {
+        if (!isCurrentClass && targetTable.isPresent()
+                && targetTable.get().getMethod(constructorSignature).isEmpty()
+                && !hasCompatibleMethod(targetTable.get(), "<init>", argTypes, table)) {
             var message = String.format(
                     "No constructor found for class '%s' with argument types %s.",
                     className, argTypes);
@@ -172,6 +174,62 @@ public class CallsSemantics extends AnalysisVisitor {
         return argsNodes.getFirst().getChildren().stream()
                 .map(arg -> TypeUtils.with(table).getExprType(arg))
                 .toList();
+    }
+
+    private boolean hasCompatibleMethod(SymbolTable target, String methodName, List<JmmType> argTypes,
+            SymbolTable contextTable) {
+        return target.getMethods(methodName).stream()
+                .filter(m -> m.parameters().size() == argTypes.size())
+                .anyMatch(m -> {
+                    for (int i = 0; i < argTypes.size(); i++) {
+                        var actual = argTypes.get(i);
+                        var expected = m.parameters().get(i).type();
+                        if (!isAssignable(expected, actual, contextTable))
+                            return false;
+                    }
+                    return true;
+                });
+    }
+
+    private boolean isAssignable(JmmType lhs, JmmType rhs, SymbolTable table) {
+        if (lhs == null || rhs == null)
+            return false;
+        if (lhs.equals(rhs))
+            return true;
+        if (!(lhs instanceof JmmClassType lhsClass) || !(rhs instanceof JmmClassType rhsClass))
+            return false;
+
+        var current = resolveTableFromReceiverType(rhsClass, table);
+        while (current.isPresent()) {
+            var currentTable = current.get();
+            if (matchesClassName(currentTable.getFullyQualifiedName(), lhsClass)
+                    || matchesClassName(currentTable.getClassName(), lhsClass)) {
+                return true;
+            }
+            var superName = currentTable.getSuperFullyQualifiedName();
+            if (superName == null) {
+                if (lhsClass.fullyQualifiedName().equals("java.lang.Object")
+                        || lhsClass.fullyQualifiedName().endsWith(".Object")
+                        || lhsClass.name().equals("Object"))
+                    return true;
+                return false;
+            }
+            if (matchesClassName(superName, lhsClass))
+                return true;
+            current = resolveTableFromReceiverType(new JmmClassType(superName, true, false), table);
+        }
+        return lhsClass.fullyQualifiedName().equals("java.lang.Object")
+                || lhsClass.fullyQualifiedName().endsWith(".Object")
+                || lhsClass.name().equals("Object");
+    }
+
+    private boolean matchesClassName(String candidateName, JmmClassType expectedType) {
+        var expectedFqName = expectedType.fullyQualifiedName();
+        var expectedSimpleName = expectedFqName.substring(expectedFqName.lastIndexOf('.') + 1);
+        var candidateSimpleName = candidateName.substring(candidateName.lastIndexOf('.') + 1);
+        return candidateName.equals(expectedFqName)
+                || candidateName.equals(expectedSimpleName)
+                || candidateSimpleName.equals(expectedSimpleName);
     }
 
     private boolean existsInCurrentClassOrSuperclass(Signature signature, SymbolTable table) {
