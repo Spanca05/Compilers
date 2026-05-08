@@ -434,8 +434,16 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
 
         computation.append("invokespecial(")
             .append(code)
-            .append(", \"<init>\").V")
-            .append(END_STMT);
+            .append(", \"<init>\"");
+        if(node.getNumChildren() >= 1){
+            for (var arg : node.getChild(0).getChildren()){
+                var ollirArg = visit(arg);
+                computation.append(",").append(ollirArg.getCode());
+            }
+
+        }
+
+        computation.append(").V").append(END_STMT);
 
         return new OllirExprResult(code, computation.toString());
     }
