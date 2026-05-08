@@ -65,7 +65,6 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         addVisit(FOR_STMT, this::visitForStmt);
         addVisit(DO_WHILE_STMT, this::visitDoWhileStmt);
         addVisit(EXPR_STMT, this::visitExprStmt);
-//        setDefaultVisit(this::defaultVisit);
     }
 
     private String simpleVarDecl(JmmNode varDecl, Void unused) {
@@ -99,7 +98,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
             var targetType = getArrayIndexedType(baseType, numIndexes);
             var baseTypeStr = ollirTypes.toOllirType(baseType);
             var targetTypeStr = ollirTypes.toOllirType(targetType);
-            var intTypeStr = ollirTypes.toOllirType(TypeUtils.intType());
+            ollirTypes.toOllirType(TypeUtils.intType());
 
             var lhs = new StringBuilder(ollirTypes.sanitizeId(varName)).append(baseTypeStr);
 
@@ -511,22 +510,6 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         node.getChildren().stream().map(this::visit).forEach(code::append);
 
         return code.toString();
-    }
-
-    /**
-     * Default visitor. Visits every child node and return an empty string.
-     *
-     * @param node
-     * @param unused
-     * @return
-     */
-    private String defaultVisit(JmmNode node, Void unused) {
-
-        for (var child : node.getChildren()) {
-            visit(child);
-        }
-
-        return "";
     }
 
     private JmmType getVarType(String varName) {
