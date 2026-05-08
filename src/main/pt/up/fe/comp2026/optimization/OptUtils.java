@@ -1,9 +1,5 @@
 package pt.up.fe.comp2026.optimization;
 
-import org.specs.comp.ollir.Element;
-import org.specs.comp.ollir.LiteralElement;
-import org.specs.comp.ollir.type.BuiltinKind;
-import org.specs.comp.ollir.type.BuiltinType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmPrimitiveType;
 import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmArrayType;
@@ -21,11 +17,11 @@ import static pt.up.fe.comp2026.jmm.ast.JmmKind.TYPE;
  */
 public class OptUtils {
 
-    private static final Set<String> OLLIR_KEYWORDS = Set.of("bool", "i32", "V", "array", "String", "final", "goto", "if", "import", "interface", "new", "package"
-            , "private", "protected", "public", "ret", "static", "this", "ldc", "invokespecial", "invokevirtual", "invokestatic", "arraylength", "getfield", "putfield", "getstatic", "putstatic",
-            ".method", ".construct", ".field", "extends"
-    );
-
+    private static final Set<String> OLLIR_KEYWORDS = Set.of("bool", "i32", "V", "array", "String", "final", "goto",
+            "if", "import", "interface", "new", "package", "private", "protected", "public", "ret", "static", "this",
+            "ldc", "invokespecial", "invokevirtual", "invokestatic", "arraylength", "getfield", "putfield", "getstatic",
+            "putstatic",
+            ".method", ".construct", ".field", "extends");
 
     private final AccumulatorMap<String> temporaries;
 
@@ -36,11 +32,9 @@ public class OptUtils {
         this.temporaries = new AccumulatorMap<>();
     }
 
-
     public String nextTemp() {
         return nextTemp("tmp");
     }
-
 
     public String nextTemp(String prefix) {
 
@@ -49,7 +43,6 @@ public class OptUtils {
 
         return prefix + nextTempNum;
     }
-
 
     public String toOllirType(JmmNode typeNode) {
 
@@ -69,7 +62,7 @@ public class OptUtils {
             return ollirType.append(toOllirType(arrayType.itemType())).toString();
         }
         if (type instanceof JmmClassType classType) {
-            return "." +classType.name();
+            return "." + classType.name();
         }
         return "." + toPrimitiveOllirType((JmmPrimitiveType) type);
     }
@@ -100,6 +93,5 @@ public class OptUtils {
 
         return id;
     }
-
 
 }
