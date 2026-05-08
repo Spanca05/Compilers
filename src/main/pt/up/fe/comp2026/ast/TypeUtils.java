@@ -239,6 +239,10 @@ public class TypeUtils {
 
         if (maybeMethod.isPresent()) return normalizeImplicitClassType(maybeMethod.get().returnType());
 
+        if (targetTable.get() != table) {
+            var byName = targetTable.get().getMethods(methodName).getFirst();
+            if (byName != null) return normalizeImplicitClassType(byName.returnType());
+        }
         if (targetTable.get() == table) {
             var superMethod = getMethodFromCurrentOrSuper(signature);
             if (superMethod.isPresent()) return superMethod.get().returnType();
