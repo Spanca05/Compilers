@@ -1,6 +1,5 @@
 package pt.up.fe.comp2026.analysis;
 
-import pt.up.fe.comp.jmm.analysis.table.MethodSymbol;
 import pt.up.fe.comp.jmm.analysis.table.Signature;
 import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
 import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
@@ -18,8 +17,6 @@ import java.util.List;
 import java.util.Optional;
 
 public class CallsSemantics extends AnalysisVisitor {
-    private MethodSymbol currentMethod;
-
     @Override
     public void buildVisitor() {
         addVisit(JmmKind.METHOD_DECL, this::visitMethodDecl);
@@ -30,9 +27,9 @@ public class CallsSemantics extends AnalysisVisitor {
 
     private Void visitMethodDecl(JmmNode method, SymbolTable table) {
         var signature = TypeUtils.with(table).getMethodDeclSignature(method);
-        //System.out.println(signature);
+        // System.out.println(signature);
 
-        currentMethod = table.getMethod(signature).orElseThrow();
+        table.getMethod(signature).orElseThrow();
         return null;
     }
 
@@ -50,8 +47,7 @@ public class CallsSemantics extends AnalysisVisitor {
                     NodeUtils.getLine(functionCall),
                     NodeUtils.getColumn(functionCall),
                     message,
-                    null
-            ));
+                    null));
         }
 
         return null;
@@ -71,15 +67,13 @@ public class CallsSemantics extends AnalysisVisitor {
                 var message = String.format(
                         "No matching method '%s' in current class/superclass with argument types %s.",
                         methodName,
-                        argTypes
-                );
+                        argTypes);
                 addReport(Report.newError(
                         Stage.SEMANTIC,
                         NodeUtils.getLine(methodCall),
                         NodeUtils.getColumn(methodCall),
                         message,
-                        null
-                ));
+                        null));
             }
 
             return null;
@@ -87,30 +81,26 @@ public class CallsSemantics extends AnalysisVisitor {
 
         var receiverType = TypeUtils.with(table).getExprType(receiver);
         var targetTable = resolveTableFromReceiverType(receiverType, table);
-        var methodExists = targetTable.isPresent() && (
-                targetTable.get() == table
-                        ? existsInCurrentClassOrSuperclass(signature, table)
-                        : targetTable.get().getMethod(signature).isPresent() || targetTable.get().getMethods().stream()
-                        .anyMatch(m -> m.name().equals(methodName) && m.parameters().size() == argTypes.size())
-        );
+        var methodExists = targetTable.isPresent() && (targetTable.get() == table
+                ? existsInCurrentClassOrSuperclass(signature, table)
+                : targetTable.get().getMethod(signature).isPresent()
+                        || hasCompatibleMethod(targetTable.get(), methodName, argTypes, table));
 
         if (!methodExists) {
             var receiverName = receiverType instanceof JmmClassType classType
-                ? classType.fullyQualifiedName()
-                : receiverType.toString();
+                    ? classType.fullyQualifiedName()
+                    : receiverType.toString();
             var message = String.format(
-                "No matching method '%s' for receiver type '%s' with argument types %s.",
-                methodName,
-                receiverName,
-                argTypes
-            );
+                    "No matching method '%s' for receiver type '%s' with argument types %s.",
+                    methodName,
+                    receiverName,
+                    argTypes);
             addReport(Report.newError(
                     Stage.SEMANTIC,
                     NodeUtils.getLine(methodCall),
                     NodeUtils.getColumn(methodCall),
                     message,
-                    null
-            ));
+                    null));
         }
 
         return null;
@@ -130,8 +120,7 @@ public class CallsSemantics extends AnalysisVisitor {
                     NodeUtils.getLine(newClassExpr),
                     NodeUtils.getColumn(newClassExpr),
                     message,
-                    null
-            ));
+                    null));
         }
 
         var argTypes = getArgTypes(newClassExpr, table);
@@ -147,7 +136,9 @@ public class CallsSemantics extends AnalysisVisitor {
                     : ((JmmSymbolTable) table).getImplicitImport(className);
         }
 
-        if (!isCurrentClass && targetTable.isPresent() && targetTable.get().getMethod(constructorSignature).isEmpty()) {
+        if (!isCurrentClass && targetTable.isPresent()
+                && targetTable.get().getMethod(constructorSignature).isEmpty()
+                && !hasCompatibleMethod(targetTable.get(), "<init>", argTypes, table)) {
             var message = String.format(
                     "No constructor found for class '%s' with argument types %s.",
                     className, argTypes);
@@ -156,8 +147,7 @@ public class CallsSemantics extends AnalysisVisitor {
                     NodeUtils.getLine(newClassExpr),
                     NodeUtils.getColumn(newClassExpr),
                     message,
-                    null
-            ));
+                    null));
         }
 
         return null;
@@ -172,6 +162,62 @@ public class CallsSemantics extends AnalysisVisitor {
         return argsNodes.getFirst().getChildren().stream()
                 .map(arg -> TypeUtils.with(table).getExprType(arg))
                 .toList();
+    }
+
+    private boolean hasCompatibleMethod(SymbolTable target, String methodName, List<JmmType> argTypes,
+            SymbolTable contextTable) {
+        return target.getMethods(methodName).stream()
+                .filter(m -> m.parameters().size() == argTypes.size())
+                .anyMatch(m -> {
+                    for (int i = 0; i < argTypes.size(); i++) {
+                        var actual = argTypes.get(i);
+                        var expected = m.parameters().get(i).type();
+                        if (!isAssignable(expected, actual, contextTable))
+                            return false;
+                    }
+                    return true;
+                });
+    }
+
+    private boolean isAssignable(JmmType lhs, JmmType rhs, SymbolTable table) {
+        if (lhs == null || rhs == null)
+            return false;
+        if (lhs.equals(rhs))
+            return true;
+        if (!(lhs instanceof JmmClassType lhsClass) || !(rhs instanceof JmmClassType rhsClass))
+            return false;
+
+        var current = resolveTableFromReceiverType(rhsClass, table);
+        while (current.isPresent()) {
+            var currentTable = current.get();
+            if (matchesClassName(currentTable.getFullyQualifiedName(), lhsClass)
+                    || matchesClassName(currentTable.getClassName(), lhsClass)) {
+                return true;
+            }
+            var superName = currentTable.getSuperFullyQualifiedName();
+            if (superName == null) {
+                if (lhsClass.fullyQualifiedName().equals("java.lang.Object")
+                        || lhsClass.fullyQualifiedName().endsWith(".Object")
+                        || lhsClass.name().equals("Object"))
+                    return true;
+                return false;
+            }
+            if (matchesClassName(superName, lhsClass))
+                return true;
+            current = resolveTableFromReceiverType(new JmmClassType(superName, true, false), table);
+        }
+        return lhsClass.fullyQualifiedName().equals("java.lang.Object")
+                || lhsClass.fullyQualifiedName().endsWith(".Object")
+                || lhsClass.name().equals("Object");
+    }
+
+    private boolean matchesClassName(String candidateName, JmmClassType expectedType) {
+        var expectedFqName = expectedType.fullyQualifiedName();
+        var expectedSimpleName = expectedFqName.substring(expectedFqName.lastIndexOf('.') + 1);
+        var candidateSimpleName = candidateName.substring(candidateName.lastIndexOf('.') + 1);
+        return candidateName.equals(expectedFqName)
+                || candidateName.equals(expectedSimpleName)
+                || candidateSimpleName.equals(expectedSimpleName);
     }
 
     private boolean existsInCurrentClassOrSuperclass(Signature signature, SymbolTable table) {
@@ -199,7 +245,8 @@ public class CallsSemantics extends AnalysisVisitor {
     }
 
     private Optional<SymbolTable> resolveTableFromReceiverType(JmmType receiverType, SymbolTable table) {
-        if (!(receiverType instanceof JmmClassType classType)) return Optional.empty();
+        if (!(receiverType instanceof JmmClassType classType))
+            return Optional.empty();
 
         var fqName = classType.fullyQualifiedName();
         var simpleName = fqName.substring(fqName.lastIndexOf('.') + 1);
@@ -211,14 +258,17 @@ public class CallsSemantics extends AnalysisVisitor {
 
         // 2) explicit import
         var imported = ((JmmSymbolTable) table).getImportedSymbolTable(fqName);
-        if (imported.isPresent()) return imported;
+        if (imported.isPresent())
+            return imported;
 
         imported = ((JmmSymbolTable) table).getImportedSymbolTable(simpleName);
-        if(imported.isPresent()) return imported;
+        if (imported.isPresent())
+            return imported;
 
         // 3) implicit import
         var implicit = ((JmmSymbolTable) table).getImplicitImport(simpleName);
-        if (implicit.isPresent()) return implicit;
+        if (implicit.isPresent())
+            return implicit;
 
         return Optional.empty();
     }
