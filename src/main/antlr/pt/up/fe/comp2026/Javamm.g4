@@ -84,7 +84,7 @@ type:
 
 stmt:
 	'{' stmt* '}'						# BlockStmt
-	| IF '(' expr ')' stmt (ELSE stmt)*	# IfStmt
+	| IF '(' expr ')' stmt (ELSE stmt)?	# IfStmt
 	| DO stmt WHILE '(' expr ')' ';'	# DoWhileStmt
 	| FOR '(' (var = ID ('[' expr ']')? '=' expr)? ';' expr? ';' (
 		var = ID ('[' expr ']')? '=' expr
