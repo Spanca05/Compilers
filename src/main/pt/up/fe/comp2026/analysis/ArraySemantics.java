@@ -34,7 +34,7 @@ public class ArraySemantics extends AnalysisVisitor {
     @Override
     public void buildVisitor() {
         addVisit(JmmKind.METHOD_DECL, this::visitMethodDecl);
-        addVisit(JmmKind.ARRAY_ACESS_EXPR, this::visitArrayAccessExpr);
+        addVisit(JmmKind.ARRAY_ACCESS_EXPR, this::visitArrayAccessExpr);
         addVisit(JmmKind.ARRAY_EXPR, this::visitArrayExpr);
         addVisit(JmmKind.LENGTH_EXPR, this::visitLengthExpr);
         addVisit(JmmKind.BINARY_EXPR, this::visitBinaryExpr);

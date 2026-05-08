@@ -98,7 +98,7 @@ stmt:
 args: (expr (',' expr)*);
 
 expr:
-	expr '[' expr ']'											# ArrayAcessExpr
+	expr '[' expr ']'											# ArrayAccessExpr
 	| expr '.' 'length'											# LengthExpr
 	| expr '.' name = ID ('(' args? ')')?						# MethodCallExpr
 	| expr op = ('*' | '/' | '%') expr							# BinaryExpr
