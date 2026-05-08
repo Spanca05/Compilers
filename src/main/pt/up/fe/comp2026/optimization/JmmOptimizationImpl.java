@@ -41,7 +41,11 @@ public class JmmOptimizationImpl implements JmmOptimization {
             System.out.println(ollirResult.getOllirCode());
         }
 
-        //TODO: Do your OLLIR-based optimizations here
+        int regAlloc = Integer.parseInt(
+                ollirResult.config().getOrDefault("registerAllocation", "-1"));
+        if (regAlloc >= 0) {
+            RegisterAllocator.allocate(ollirResult.getOllirClass(), regAlloc);
+        }
 
         return ollirResult;
     }
