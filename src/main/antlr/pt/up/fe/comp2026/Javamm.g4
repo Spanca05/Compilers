@@ -60,18 +60,17 @@ packageDecl: PACKAGE path += ID ('.' path += ID)* ';';
 importDecl: IMPORT path += ID ('.' path += ID)* ';';
 
 classDecl:
-	CLASS name = ID (EXTENDS superclass = ID)? '{' (
-		varDecl
-		| methodDecl
-	)* '}';
+	CLASS name = ID (EXTENDS superclass = ID)? '{'
+		(varDecl | methodDecl)*
+	'}';
 
 varDecl: typeNode = type name = ID ('=' expr)? ';';
 
-methodDecl
-	locals[boolean isStatic=false]:
-	visibility = (PUBLIC | PROTECTED | PRIVATE)? (
-		STATIC {$isStatic=true;}
-	)? returnType = type name = ID '(' (param (',' param)*)? ')' '{' varDecl* stmt* '}';
+methodDecl locals[boolean isStatic=false]:
+	visibility = (PUBLIC | PROTECTED | PRIVATE)? (STATIC {$isStatic=true;})?
+	returnType = type name = ID 
+	'(' (param (',' param)*)? ')'
+	'{' varDecl* stmt* '}';
 
 param: typeNode = type name = ID;
 
@@ -86,9 +85,11 @@ stmt:
 	'{' stmt* '}'						# BlockStmt
 	| IF '(' expr ')' stmt (ELSE stmt)?	# IfStmt
 	| DO stmt WHILE '(' expr ')' ';'	# DoWhileStmt
-	| FOR '(' (var = ID ('[' expr ']')? '=' expr)? ';' expr? ';' (
-		var = ID ('[' expr ']')? '=' expr
-	)? ')' stmt								# ForStmt
+	| FOR '(' 
+		(var = ID ('[' expr ']')? '=' expr)? ';'
+		expr? ';'
+		(var = ID ('[' expr ']')? '=' expr)? 
+	')' stmt								# ForStmt
 	| WHILE '(' expr ')' stmt				# WhileStmt
 	| expr ';'								# ExprStmt
 	| var = ID ('[' expr ']')* '=' expr ';'	# AssignStmt
