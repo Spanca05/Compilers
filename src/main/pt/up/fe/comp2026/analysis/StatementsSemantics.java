@@ -15,7 +15,6 @@ import pt.up.fe.comp2026.jmm.ast.JmmAttributes;
 import pt.up.fe.comp2026.jmm.ast.JmmKind;
 import pt.up.fe.comp2026.symboltable.JmmSymbolTable;
 
-import java.util.Objects;
 import java.util.Optional;
 
 public class StatementsSemantics extends AnalysisVisitor {
@@ -185,7 +184,8 @@ public class StatementsSemantics extends AnalysisVisitor {
             }
         }
 
-        if (lhsType == null) return null;
+        if (lhsType == null)
+            return null;
 
         boolean isArrayStore = children.size() > 1;
 
@@ -204,16 +204,17 @@ public class StatementsSemantics extends AnalysisVisitor {
                     addReport(Report.newError(Stage.SEMANTIC,
                             NodeUtils.getLine(assignStmt), NodeUtils.getColumn(assignStmt),
                             "Cannot store value of type '" + rhsType +
-                                    "' into array of element type '" + arrayType.itemType() + "'.", null));
+                                    "' into array of element type '" + arrayType.itemType() + "'.",
+                            null));
                 }
             }
-        }
-        else {
+        } else {
             if (!isAssignable(lhsType, rhsType, table)) {
                 addReport(Report.newError(Stage.SEMANTIC,
                         NodeUtils.getLine(assignStmt), NodeUtils.getColumn(assignStmt),
                         String.format("Cannot assign expression of type '%s' to variable '%s' of type '%s'.",
-                                rhsType, varName, lhsType), null));
+                                rhsType, varName, lhsType),
+                        null));
             }
         }
 
@@ -325,7 +326,6 @@ public class StatementsSemantics extends AnalysisVisitor {
         var first = forStmt.getChild(0);
         var condition = forStmt.getChild(1);
         var second = forStmt.getChild(2);
-
 
         var firstType = TypeUtils.with(table).getExprType(first);
         var condType = TypeUtils.with(table).getExprType(condition);
