@@ -90,7 +90,8 @@ public class CallsSemantics extends AnalysisVisitor {
         var methodExists = targetTable.isPresent() && (
                 targetTable.get() == table
                         ? existsInCurrentClassOrSuperclass(signature, table)
-                        : targetTable.get().getMethod(signature).isPresent()
+                        : targetTable.get().getMethod(signature).isPresent() || targetTable.get().getMethods().stream()
+                        .anyMatch(m -> m.name().equals(methodName) && m.parameters().size() == argTypes.size())
         );
 
         if (!methodExists) {

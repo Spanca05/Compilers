@@ -361,14 +361,17 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                 argstr.append(", ").append(ollirArg.getCode());
             }
         }
-
+        var callType = method.getFirst().isStatic() ? "invokestatic(" : "invokevirtual(";
+        if (method.getFirst().isStatic()){
+            receiverCode = receiverCode.substring(receiverCode.lastIndexOf(".") + 1);
+        }
         computation.append(temp)
                 .append(ollirRetType)
                 .append(SPACE)
                 .append(ASSIGN)
                 .append(ollirRetType)
                 .append(SPACE)
-                .append("invokevirtual(")
+                .append(callType)
                 .append(receiverCode)
                 .append(", ")
                 .append("\"")
