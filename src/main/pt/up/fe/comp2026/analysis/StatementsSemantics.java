@@ -249,13 +249,20 @@ public class StatementsSemantics extends AnalysisVisitor {
 
             var superName = current.getSuperFullyQualifiedName();
             if (superName == null) {
-                return false;
+                break;
+            }
+
+            if (matchesClassName(superName, parentType)) {
+                return true;
             }
 
             currentTable = resolveClassTable(superName, table);
         }
 
-        return false;
+        var parentFq = parentType.fullyQualifiedName();
+        return parentFq.equals("java.lang.Object")
+                || parentFq.equals("Object")
+                || parentFq.endsWith(".Object");
     }
 
     private Optional<SymbolTable> resolveClassTable(JmmClassType classType, SymbolTable table) {
