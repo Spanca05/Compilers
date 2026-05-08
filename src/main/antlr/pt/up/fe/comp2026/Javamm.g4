@@ -4,6 +4,11 @@ grammar Javamm;
     package pt.up.fe.comp2026;
 }
 
+// -----------------------------------------------------------------------------
+// LEXER RULES
+// -----------------------------------------------------------------------------
+
+// Keywords
 CLASS: 'class';
 INT: 'int';
 FLOAT: 'float';
@@ -29,16 +34,24 @@ NEW: 'new';
 NULL: 'null';
 THIS: 'this';
 
+// Literals
 INTEGER: '0' | [1-9][0-9]*;
 BOOLEAN: 'false' | 'true';
 VOID: 'void';
 
+// Identifiers
 ID: [a-zA-Z$_][a-zA-Z0-9$_]*;
 
+// Whitespace
 WS: [ \t\n\r\f]+ -> skip;
 
+// Comments
 SINGLE_COMMENT: '//' ~[\r\n]* -> skip;
 BLOCK_COMMENT: '/*' .*? '*/' -> skip;
+
+// -----------------------------------------------------------------------------
+// PARSER RULES
+// -----------------------------------------------------------------------------
 
 program: packageDecl importDecl* classNode = classDecl EOF;
 
