@@ -3,7 +3,7 @@ package pt.up.fe.comp2026.optimization;
 import pt.up.fe.comp.jmm.analysis.JmmSemanticsResult;
 import pt.up.fe.comp.jmm.ollir.JmmOptimization;
 import pt.up.fe.comp.jmm.ollir.OllirResult;
-
+import pt.up.fe.comp2026.optimization.ast.AstOptimizer;
 
 import java.util.Collections;
 
@@ -24,7 +24,12 @@ public class JmmOptimizationImpl implements JmmOptimization {
     @Override
     public JmmSemanticsResult transformAst(JmmSemanticsResult semanticsResult) {
 
-        //TODO: Do your AST-based optimizations here
+        boolean optimize = Boolean.parseBoolean(
+                semanticsResult.config().getOrDefault("optimize", "false"));
+        if (optimize) {
+            new AstOptimizer(semanticsResult.getSymbolTable())
+                    .optimize(semanticsResult.getRootNode());
+        }
         return semanticsResult;
     }
 
