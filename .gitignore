@@ -22,7 +22,6 @@ gradle.properties
 output.ollir
 output.jasmin
 output.j
-*.ollir
 *.jasmin
 
 # IntelliJ IDEA
