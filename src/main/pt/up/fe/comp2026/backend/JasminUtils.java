@@ -42,7 +42,8 @@ public class JasminUtils {
 
 
     public String getTypePrefix(Type type) {
-        System.out.println("[TODO] JasminUtils.getTypePrefix(): Assumes it is always int, needs to be expanded");
+        if (type instanceof BuiltinType builtinType)
+            if (builtinType.getKind() == BuiltinKind.VOID) return "";
         return "i";
     }
 
@@ -51,6 +52,8 @@ public class JasminUtils {
         if (type instanceof BuiltinType builtinType) {
             return switch (builtinType.getKind()) {
                 case INT32 -> "I";
+                case BOOLEAN -> "Z";
+                case VOID -> "V";
                 default ->
                         throw new RuntimeException("Not implemented for element type '" + builtinType.getKind() + "'");
             };

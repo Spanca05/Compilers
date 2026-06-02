@@ -6,6 +6,7 @@ import org.specs.comp.ollir.tree.TreeNode;
 import org.specs.comp.ollir.type.ArrayType;
 import org.specs.comp.ollir.type.BuiltinKind;
 import org.specs.comp.ollir.type.BuiltinType;
+import org.specs.comp.ollir.type.Type;
 import pt.up.fe.comp.jmm.ollir.OllirResult;
 import pt.up.fe.comp.jmm.report.Report;
 import pt.up.fe.comp2026.optimization.OptUtils;
@@ -16,8 +17,13 @@ import pt.up.fe.specs.util.utilities.StringLines;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static org.specs.comp.ollir.OperandType.INT32;
+import static pt.up.fe.comp2026.JavammParser.BOOLEAN;
+import static pt.up.fe.comp2026.JavammParser.VOID;
 
 /**
  * Generates Jasmin code from an OllirResult.
@@ -98,23 +104,32 @@ public class JasminGenerator {
 
         // generate class name
         var nameWithPackage = ollirResult.getOllirClass().getClassFullyQualifiedName().replace('.', '/');
-        code.append(".class ").append("public ").append(nameWithPackage).append(NL).append(NL);
+        code.append(".class ").append("public ").append(nameWithPackage).append(NL);
 
         // TODO: When you support 'extends', this must be updated
         var fullSuperClass =  "java/lang/Object";
 
-        code.append(".super ").append(fullSuperClass).append(NL);
+        code.append(".super ").append(fullSuperClass).append(NL).append(NL);
 
         // generate a single constructor method
         var defaultConstructor = """
-                ;default constructor
                 .method public <init>()V
                     aload_0
                     invokespecial %s/<init>()V
                     return
                 .end method
                 """.formatted(fullSuperClass);
-        code.append(defaultConstructor);
+
+        // generate the fields (Not working)
+        for (var field : classUnit.getFields()) {
+            code.append(".field public ")
+                    .append(field.getFieldName())
+                    .append(" I")
+                    .append(NL).append(NL);
+        }
+
+
+        code.append(defaultConstructor).append(NL);
 
         // generate code for all other methods
         for (var method : ollirResult.getOllirClass().getMethods()) {
@@ -144,6 +159,8 @@ public class JasminGenerator {
 
         // TODO: Modifier is hard-coded
         var modifier = types.getModifier(AccessModifier.PUBLIC);
+        if (method.getMethodAccessModifier().equals(AccessModifier.PRIVATE)) modifier = types.getModifier(AccessModifier.PRIVATE);
+        if (method.getMethodAccessModifier().equals(AccessModifier.PROTECTED)) modifier = types.getModifier(AccessModifier.PROTECTED);
 
 
         var staticMod = method.isStaticMethod() ? "static " : "";
@@ -265,6 +282,17 @@ public class JasminGenerator {
         code.append(typePrefix).append("return").append(NL);
 
         return code.toString();
+    }
+
+    public static String getTypeDescriptor(Type type) {
+        return switch(type.toString()) {
+            case "INT32" -> "I";
+            case "BOOLEAN" -> "Z";
+            case "VOID" -> "V";
+            default -> throw new RuntimeException(
+                    "Not implemented for element type '" +
+                            type.toString() + "'");
+        };
     }
 
 }
