@@ -42,9 +42,15 @@ public class JasminUtils {
 
 
     public String getTypePrefix(Type type) {
-        if (type instanceof BuiltinType builtinType)
-            if (builtinType.getKind() == BuiltinKind.VOID) return "";
-        return "i";
+        System.out.println("[TODO] JasminUtils.getTypePrefix(): Assumes it is always int, needs to be expanded");
+        if (type instanceof BuiltinType b) {
+            return switch (b.getKind()) {
+                case INT32, BOOLEAN -> "i";
+                case VOID -> "";
+                case STRING -> "a";
+            };
+        }
+        return "a";
     }
 
     public String getTypeDescriptor(Type type) {
@@ -52,21 +58,24 @@ public class JasminUtils {
         if (type instanceof BuiltinType builtinType) {
             return switch (builtinType.getKind()) {
                 case INT32 -> "I";
-                case BOOLEAN -> "Z";
-                case VOID -> "V";
                 default ->
                         throw new RuntimeException("Not implemented for element type '" + builtinType.getKind() + "'");
             };
         }
-
-        throw new RuntimeException("Not implemented for element type '" + type + "'");
+        throw new RuntimeException("Unknown type: '" + type + "'");
     }
 
 
 
 
     public String getModifier(AccessModifier accessModifier) {
-        return accessModifier.name().toLowerCase() + " ";
+        return switch (accessModifier) {
+            case DEFAULT -> "";
+            case PUBLIC -> "public ";
+            case PRIVATE -> "private ";
+            case PROTECTED -> "protected ";
+            default -> accessModifier.name().toLowerCase() + " ";
+        };
     }
 
     public String getLoad(Descriptor reg) {

@@ -118,6 +118,12 @@ public class JasminGenerator {
 
         code.append(".super ").append(fullSuperClass).append(NL).append(NL);
 
+        for (var field : classUnit.getFields()) {
+            var modifier = types.getModifier(field.getFieldAccessModifier());
+            var descriptor = types.getTypeDescriptor(field.getFieldType());
+            code.append(".field ").append(modifier).append("'").append(field.getFieldName()).append("'").append(" ").append(descriptor).append(NL);
+        }
+
         // generate a single constructor method
         var defaultConstructor = """
                 .method public <init>()V
@@ -168,7 +174,6 @@ public class JasminGenerator {
         var modifier = types.getModifier(AccessModifier.PUBLIC);
         if (method.getMethodAccessModifier().equals(AccessModifier.PRIVATE)) modifier = types.getModifier(AccessModifier.PRIVATE);
         if (method.getMethodAccessModifier().equals(AccessModifier.PROTECTED)) modifier = types.getModifier(AccessModifier.PROTECTED);
-
 
         var staticMod = method.isStaticMethod() ? "static " : "";
 
