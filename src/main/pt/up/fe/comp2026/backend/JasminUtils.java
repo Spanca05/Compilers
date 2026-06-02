@@ -58,9 +58,17 @@ public class JasminUtils {
         if (type instanceof BuiltinType builtinType) {
             return switch (builtinType.getKind()) {
                 case INT32 -> "I";
-                default ->
-                        throw new RuntimeException("Not implemented for element type '" + builtinType.getKind() + "'");
+                case BOOLEAN -> "Z";
+                case VOID -> "V";
+                case STRING -> "Ljava/lang/String;";
             };
+        }
+        if (type instanceof ArrayType arrayType) {
+            return "[".repeat(arrayType.getNumDimensions()) + getTypeDescriptor(arrayType.getElementType());
+        }
+        if (type instanceof ClassType classType) {
+            var fullName = fullClassnames.getOrDefault(classType.getName(), classType.getName());
+            return "L" + fullName + ";";
         }
         throw new RuntimeException("Unknown type: '" + type + "'");
     }

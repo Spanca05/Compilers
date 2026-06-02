@@ -133,15 +133,6 @@ public class JasminGenerator {
                 .end method
                 """.formatted(fullSuperClass);
 
-        // generate the fields (Not working)
-        for (var field : classUnit.getFields()) {
-            code.append(".field public ")
-                    .append(field.getFieldName())
-                    .append(" I")
-                    .append(NL).append(NL);
-        }
-
-
         code.append(defaultConstructor).append(NL);
 
         // generate code for all other methods
