@@ -22,8 +22,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.specs.comp.ollir.OperandType.INT32;
-import static pt.up.fe.comp2026.JavammParser.BOOLEAN;
-import static pt.up.fe.comp2026.JavammParser.VOID;
+import static pt.up.fe.comp2026.JavammParser.*;
 
 /**
  * Generates Jasmin code from an OllirResult.
@@ -107,7 +106,15 @@ public class JasminGenerator {
         code.append(".class ").append("public ").append(nameWithPackage).append(NL);
 
         // TODO: When you support 'extends', this must be updated
-        var fullSuperClass =  "java/lang/Object";
+
+        var fullSuperClass =  "java/lang";
+        var superClass = ollirResult.getOllirClass().getSuperClass();
+
+        for (var importt : ollirResult.getOllirClass().getImports()) {
+            if (importt.endsWith(superClass)) fullSuperClass = importt.substring(0, importt.length()-superClass.length()-1);
+        }
+
+        fullSuperClass += "/"+superClass;
 
         code.append(".super ").append(fullSuperClass).append(NL).append(NL);
 
