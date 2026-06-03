@@ -60,7 +60,7 @@ public class JasminUtils {
                 case INT32 -> "I";
                 case BOOLEAN -> "Z";
                 case VOID -> "V";
-                case STRING -> "Ljava/lang/String;";tes
+                case STRING -> "Ljava/lang/String;";
             };
         }
         if (type instanceof ArrayType arrayType) {
