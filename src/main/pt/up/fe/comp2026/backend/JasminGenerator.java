@@ -286,16 +286,4 @@ public class JasminGenerator {
 
         return code.toString();
     }
-
-    public static String getTypeDescriptor(Type type) {
-        return switch(type.toString()) {
-            case "INT32" -> "I";
-            case "BOOLEAN" -> "Z";
-            case "VOID" -> "V";
-            default -> throw new RuntimeException(
-                    "Not implemented for element type '" +
-                            type.toString() + "'");
-        };
-    }
-
 }

@@ -60,14 +60,14 @@ public class JasminUtils {
                 case INT32 -> "I";
                 case BOOLEAN -> "Z";
                 case VOID -> "V";
-                case STRING -> "Ljava/lang/String;";
+                case STRING -> "Ljava/lang/String;";tes
             };
         }
         if (type instanceof ArrayType arrayType) {
             return "[".repeat(arrayType.getNumDimensions()) + getTypeDescriptor(arrayType.getElementType());
         }
         if (type instanceof ClassType classType) {
-            var fullName = fullClassnames.getOrDefault(classType.getName(), classType.getName());
+            var fullName = fullClassnames.getOrDefault(classType.getName(), "java/lang/" + classType.getName());
             return "L" + fullName + ";";
         }
         throw new RuntimeException("Unknown type: '" + type + "'");
