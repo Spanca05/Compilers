@@ -263,7 +263,10 @@ public class JasminGenerator {
         // apply operation
         var op = switch (binaryOp.getOperation().getOpType()) {
             case ADD -> "add";
+            case SUB -> "sub";
             case MUL -> "mul";
+            case DIV -> "div";
+
             default -> throw new NotImplementedException(binaryOp.getOperation().getOpType());
         };
 
