@@ -43,7 +43,6 @@ public class JasminUtils {
 
 
     public String getTypePrefix(Type type) {
-        System.out.println("[TODO] JasminUtils.getTypePrefix(): Assumes it is always int, needs to be expanded");
         if (type instanceof BuiltinType b) {
             return switch (b.getKind()) {
                 case INT32, BOOLEAN -> "i";
@@ -68,14 +67,26 @@ public class JasminUtils {
                 case INT32 -> "I";
                 case BOOLEAN -> "Z";
                 case VOID -> "V";
-                case STRING -> "Ljava/lang/String;";
+                default -> "";
             };
         }
         if (type instanceof ArrayType arrayType) {
             return "[".repeat(arrayType.getNumDimensions()) + getTypeDescriptor(arrayType.getElementType());
         }
         if (type instanceof ClassType classType) {
-            var fullName = fullClassnames.getOrDefault(classType.getName(), "java/lang/" + classType.getName());
+            var fullName = "";
+            if (fullClassnames.containsKey(classType.getName())) {
+                fullName = fullClassnames.get(classType.getName());
+            }
+            else if (classType.getName().equals("Object")) {
+                fullName = "java/lang/Object";
+            }
+            else if (classType.getName().equals("String")) {
+                fullName = "java/lang/String";
+            }
+            else {
+                fullName = classType.getName();
+            }
             return "L" + fullName + ";";
         }
         throw new RuntimeException("Unknown type: '" + type + "'");
@@ -107,7 +118,5 @@ public class JasminUtils {
 
         return prefix + "store " + value;
     }
-
-
 
 }

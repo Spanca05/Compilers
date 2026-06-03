@@ -129,14 +129,15 @@ public class JasminGenerator {
 
         // TODO: When you support 'extends', this must be updated
 
-        var fullSuperClass =  "java/lang";
+        var fullSuperClass = "java/lang";
         var superClass = ollirResult.getOllirClass().getSuperClass();
 
         for (var importt : ollirResult.getOllirClass().getImports()) {
-            if (importt.endsWith(superClass)) fullSuperClass = importt.substring(0, importt.length()-superClass.length()-1);
+            if (importt.endsWith(superClass))
+                fullSuperClass = importt.substring(0, importt.length() - superClass.length() - 1);
         }
 
-        fullSuperClass += "/"+superClass;
+        fullSuperClass += "/" + superClass;
 
         code.append(".super ").append(fullSuperClass).append(NL).append(NL);
 
@@ -175,17 +176,24 @@ public class JasminGenerator {
 
     private String generateMethod(Method method) {
         currentMethod = method;
+
+        // Initialize utils, to have fresh labels
         utils = new OptUtils(null);
         stackDepth = 0;
         maxStackDepth = 0;
 
         var code = new StringBuilder();
 
-        var modifier = types.getModifier(AccessModifier.PUBLIC);
-        if (method.getMethodAccessModifier().equals(AccessModifier.PRIVATE)) modifier = types.getModifier(AccessModifier.PRIVATE);
-        if (method.getMethodAccessModifier().equals(AccessModifier.PROTECTED)) modifier = types.getModifier(AccessModifier.PROTECTED);
+        var modifier = "";
+        if (method.getMethodAccessModifier().equals(AccessModifier.PUBLIC))
+            modifier = types.getModifier(AccessModifier.PUBLIC);
+        if (method.getMethodAccessModifier().equals(AccessModifier.PRIVATE))
+            modifier = types.getModifier(AccessModifier.PRIVATE);
+        if (method.getMethodAccessModifier().equals(AccessModifier.PROTECTED))
+            modifier = types.getModifier(AccessModifier.PROTECTED);
 
         var staticMod = method.isStaticMethod() ? "static " : "";
+
         var methodName = method.getMethodName();
 
         var params = method.getParams().stream()
@@ -204,6 +212,7 @@ public class JasminGenerator {
         for (var inst : method.getInstructions()) {
             var instCode = StringLines.getLines(apply(inst)).stream()
                     .collect(Collectors.joining(NL + TAB, TAB, NL));
+
             bodyCode.append(instCode);
         }
 
@@ -252,6 +261,7 @@ public class JasminGenerator {
     }
 
     private String generateOperand(Operand operand) {
+        // get register
         var reg = currentMethod.getVarTable().get(operand.getName());
         stackPush(1);
         return types.getLoad(reg) + NL;
@@ -259,13 +269,17 @@ public class JasminGenerator {
 
 
     private String generateBinaryOp(BinaryOpInstruction binaryOp) {
+
         var code = new StringBuilder();
 
+        // load values on the left and on the right
         code.append(apply(binaryOp.getLeftOperand()));
         code.append(apply(binaryOp.getRightOperand()));
 
+
         var typePrefix = types.getTypePrefix(binaryOp.getOperation().getTypeInfo());
 
+        // apply operation
         var op = switch (binaryOp.getOperation().getOpType()) {
             case ADD -> "add";
             case SUB -> "sub";
@@ -285,8 +299,10 @@ public class JasminGenerator {
         var code = new StringBuilder();
 
         var returnType = returnInst.getReturnType();
+
         var typePrefix = types.getTypePrefix(returnType);
 
+        // Load operand into the stack, if present
         returnInst.getOperand().ifPresent(op -> code.append(apply(op)));
 
         if (!isVoidType(returnType)) {
