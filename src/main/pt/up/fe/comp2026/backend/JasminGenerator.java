@@ -6,6 +6,7 @@ import org.specs.comp.ollir.tree.TreeNode;
 import org.specs.comp.ollir.type.ArrayType;
 import org.specs.comp.ollir.type.BuiltinKind;
 import org.specs.comp.ollir.type.BuiltinType;
+import org.specs.comp.ollir.type.ClassType;
 import org.specs.comp.ollir.type.Type;
 import pt.up.fe.comp.jmm.ollir.OllirResult;
 import pt.up.fe.comp.jmm.report.Report;
@@ -48,6 +49,9 @@ public class JasminGenerator {
     private OptUtils utils;
     private final FunctionClassMap<TreeNode, String> generators;
 
+    private int stackDepth;
+    private int maxStackDepth;
+
     public JasminGenerator(OllirResult ollirResult) {
         this.ollirResult = ollirResult;
 
@@ -55,6 +59,8 @@ public class JasminGenerator {
         code = null;
         currentMethod = null;
         isInsideAssignment = false;
+        stackDepth = 0;
+        maxStackDepth = 0;
 
         types = new JasminUtils(ollirResult);
         // Initialize everytime we start a method
@@ -68,6 +74,22 @@ public class JasminGenerator {
         generators.put(Operand.class, this::generateOperand);
         generators.put(BinaryOpInstruction.class, this::generateBinaryOp);
         generators.put(ReturnInstruction.class, this::generateReturn);
+        generators.put(InvokeVirtualInstruction.class, this::generateInvokeVirtual);
+        generators.put(InvokeSpecialInstruction.class, this::generateInvokeSpecial);
+        generators.put(NewInstruction.class, this::generateNew);
+    }
+
+    private void stackPush(int n) {
+        stackDepth += n;
+        if (stackDepth > maxStackDepth) maxStackDepth = stackDepth;
+    }
+
+    private void stackPop(int n) {
+        stackDepth -= n;
+    }
+
+    private boolean isVoidType(Type type) {
+        return type instanceof BuiltinType b && b.getKind() == BuiltinKind.VOID;
     }
 
 
@@ -152,22 +174,18 @@ public class JasminGenerator {
     }
 
     private String generateMethod(Method method) {
-        //System.out.println("STARTING METHOD " + method.getMethodName());
-        // set method
         currentMethod = method;
-
-        // Initialize utils, to have fresh labels
         utils = new OptUtils(null);
+        stackDepth = 0;
+        maxStackDepth = 0;
 
         var code = new StringBuilder();
 
-        // TODO: Modifier is hard-coded
         var modifier = types.getModifier(AccessModifier.PUBLIC);
         if (method.getMethodAccessModifier().equals(AccessModifier.PRIVATE)) modifier = types.getModifier(AccessModifier.PRIVATE);
         if (method.getMethodAccessModifier().equals(AccessModifier.PROTECTED)) modifier = types.getModifier(AccessModifier.PROTECTED);
 
         var staticMod = method.isStaticMethod() ? "static " : "";
-
         var methodName = method.getMethodName();
 
         var params = method.getParams().stream()
@@ -179,28 +197,27 @@ public class JasminGenerator {
         code.append("\n.method ").append(modifier)
                 .append(staticMod)
                 .append(methodName)
-                .append("(" + params + ")" + returnType).append(NL);
+                .append("(").append(params).append(")").append(returnType).append(NL);
 
-
+        // Generate body first so stack/locals limits can be computed
         var bodyCode = new StringBuilder();
         for (var inst : method.getInstructions()) {
             var instCode = StringLines.getLines(apply(inst)).stream()
                     .collect(Collectors.joining(NL + TAB, TAB, NL));
-
             bodyCode.append(instCode);
         }
 
-        // Add limits
-        code.append(TAB).append(".limit stack 99").append(NL);
-        code.append(TAB).append(".limit locals 99").append(NL);
+        // Compute limits from var table and tracked stack depth
+        var localsLimit = method.getVarTable().values().stream()
+                .mapToInt(Descriptor::getVirtualReg)
+                .max().orElse(-1) + 1;
 
+        code.append(TAB).append(".limit stack ").append(maxStackDepth).append(NL);
+        code.append(TAB).append(".limit locals ").append(localsLimit).append(NL);
         code.append(TAB).append(bodyCode);
-
         code.append(".end method\n");
-        //System.out.println("METHOD:\n" + code);
-        // unset method
+
         currentMethod = null;
-        //System.out.println("ENDING METHOD " + method.getMethodName());
         return code.toString();
     }
 
@@ -208,24 +225,16 @@ public class JasminGenerator {
         try {
             isInsideAssignment = true;
 
-
             var code = new StringBuilder();
-
-            // store value in the stack in destination
             var lhs = assign.getDest();
 
-            // generate code for loading what's on the right
             code.append(apply(assign.getRhs()));
 
-
-            // Assume Operand
             var operand = (Operand) lhs;
-
-
-            // get register
             var reg = currentMethod.getVarTable().get(operand.getName());
 
             code.append(types.getStore(reg)).append(NL);
+            stackPop(1);
 
             return code.toString();
         } finally {
@@ -238,29 +247,25 @@ public class JasminGenerator {
     }
 
     private String generateLiteral(LiteralElement literal) {
+        stackPush(1);
         return "ldc " + literal.getLiteral() + NL;
     }
 
     private String generateOperand(Operand operand) {
-        // get register
         var reg = currentMethod.getVarTable().get(operand.getName());
-
+        stackPush(1);
         return types.getLoad(reg) + NL;
     }
 
 
     private String generateBinaryOp(BinaryOpInstruction binaryOp) {
-
         var code = new StringBuilder();
 
-        // load values on the left and on the right
         code.append(apply(binaryOp.getLeftOperand()));
         code.append(apply(binaryOp.getRightOperand()));
 
-
         var typePrefix = types.getTypePrefix(binaryOp.getOperation().getTypeInfo());
 
-        // apply operation
         var op = switch (binaryOp.getOperation().getOpType()) {
             case ADD -> "add";
             case SUB -> "sub";
@@ -270,7 +275,8 @@ public class JasminGenerator {
             default -> throw new NotImplementedException(binaryOp.getOperation().getOpType());
         };
 
-        code.append(typePrefix + op).append(NL);
+        code.append(typePrefix).append(op).append(NL);
+        stackPop(1); // pop 2, push 1 → net -1
 
         return code.toString();
     }
@@ -279,14 +285,89 @@ public class JasminGenerator {
         var code = new StringBuilder();
 
         var returnType = returnInst.getReturnType();
-
         var typePrefix = types.getTypePrefix(returnType);
 
-        // Load operand into the stack, if present
         returnInst.getOperand().ifPresent(op -> code.append(apply(op)));
+
+        if (!isVoidType(returnType)) {
+            stackPop(1); // ireturn/areturn pops 1
+        }
 
         code.append(typePrefix).append("return").append(NL);
 
         return code.toString();
     }
+
+    private String generateInvokeVirtual(InvokeVirtualInstruction inst) {
+        var code = new StringBuilder();
+
+        code.append(apply(inst.getCaller()));
+        for (var arg : inst.getArguments()) {
+            code.append(apply(arg));
+        }
+
+        var callerClass = types.getFullClassName(inst.getCaller().getType());
+        var methodName = ((LiteralElement) inst.getMethodName()).getLiteral().replace("\"", "");
+        var paramDesc = inst.getArguments().stream()
+                .map(a -> types.getTypeDescriptor(a.getType()))
+                .collect(Collectors.joining());
+        var retDesc = types.getTypeDescriptor(inst.getReturnType());
+
+        code.append("invokevirtual ").append(callerClass).append("/")
+                .append(methodName).append("(").append(paramDesc).append(")").append(retDesc).append(NL);
+
+        stackPop(1 + inst.getArguments().size());
+        if (!isVoidType(inst.getReturnType())) stackPush(1);
+
+        return code.toString();
+    }
+
+    private String generateInvokeSpecial(InvokeSpecialInstruction inst) {
+        var code = new StringBuilder();
+
+        code.append(apply(inst.getCaller()));
+        for (var arg : inst.getArguments()) {
+            code.append(apply(arg));
+        }
+
+        var superClass = inst.getSuperClass();
+        String callerClass;
+        if (superClass.isPresent()) {
+            callerClass = superClass.get().replace('.', '/');
+        } else {
+            callerClass = types.getFullClassName(inst.getCaller().getType());
+        }
+
+        var methodName = ((LiteralElement) inst.getMethodName()).getLiteral().replace("\"", "");
+        var paramDesc = inst.getArguments().stream()
+                .map(a -> types.getTypeDescriptor(a.getType()))
+                .collect(Collectors.joining());
+        var retDesc = types.getTypeDescriptor(inst.getReturnType());
+
+        code.append("invokespecial ").append(callerClass).append("/")
+                .append(methodName).append("(").append(paramDesc).append(")").append(retDesc).append(NL);
+
+        stackPop(1 + inst.getArguments().size());
+        if (!isVoidType(inst.getReturnType())) stackPush(1);
+
+        return code.toString();
+    }
+
+    private String generateNew(NewInstruction inst) {
+        var className = types.getFullClassName(inst.getReturnType());
+        stackPush(1);
+        return "new " + className + NL;
+    }
+
+    public static String getTypeDescriptor(Type type) {
+        return switch(type.toString()) {
+            case "INT32" -> "I";
+            case "BOOLEAN" -> "Z";
+            case "VOID" -> "V";
+            default -> throw new RuntimeException(
+                    "Not implemented for element type '" +
+                            type.toString() + "'");
+        };
+    }
+
 }

@@ -25,10 +25,11 @@ public class JasminUtils {
         fullClassnames = new HashMap<>();
 
         // Predefined classnames
-        fullClassnames.put("this", ollirResult.getOllirClass().getClassName());
-        // This will be get caught as STRING OLLIR element type.
-        // And classes cannot be named String, since it is an OLLIR reserved keyword
-        //imports.put("String", "java/lang/String");
+        var selfFqn = ollirResult.getOllirClass().getClassFullyQualifiedName().replace('.', '/');
+        fullClassnames.put("this", selfFqn);
+        fullClassnames.put(ollirResult.getOllirClass().getClassName(), selfFqn);
+        fullClassnames.put("String", "java/lang/String");
+        fullClassnames.put("Object", "java/lang/Object");
 
         for (var fullImport : ollirResult.getOllirClass().getImports()) {
             var splitted = fullImport.split("\\.");
@@ -51,6 +52,13 @@ public class JasminUtils {
             };
         }
         return "a";
+    }
+
+    public String getFullClassName(Type type) {
+        if (type instanceof ClassType classType) {
+            return fullClassnames.getOrDefault(classType.getName(), classType.getName());
+        }
+        throw new RuntimeException("Expected class type, got: " + type);
     }
 
     public String getTypeDescriptor(Type type) {
