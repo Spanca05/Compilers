@@ -268,7 +268,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         String ollirIntType = ollirTypes.toOllirType(TypeUtils.intType());
         // new int[a][b][c] {}
         var temp = ollirTypes.nextTemp();
-        if (!node.getChild(0).isInstance(ARGS)) {
+        if (!node.getChild(0).isInstance(ARGS) && !node.getParent().isInstance(ARGS)) {
             code.append("new(array");
             for (var child : node.getChildren()) {
                 var ollirChild = visit(child);

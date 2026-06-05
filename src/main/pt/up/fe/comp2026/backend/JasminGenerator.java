@@ -285,7 +285,6 @@ public class JasminGenerator {
             case SUB -> "sub";
             case MUL -> "mul";
             case DIV -> "div";
-
             default -> throw new NotImplementedException(binaryOp.getOperation().getOpType());
         };
 
@@ -370,9 +369,21 @@ public class JasminGenerator {
     }
 
     private String generateNew(NewInstruction inst) {
-        var className = types.getFullClassName(inst.getReturnType());
-        stackPush(1);
-        return "new " + className + NL;
+        var code = new StringBuilder();
+        var retType = inst.getReturnType();
+        if (retType instanceof ArrayType arrayType) {
+            var elementType = types.getTypeDescriptor(arrayType.getElementType());
+            var numDims = arrayType.getNumDimensions();
+            for (var arg : inst.getArguments()) {
+                code.append(apply(arg));
+            }
+            stackPush(1);
+            return code.toString() + "newarray " + "int" + NL;
+        } else {
+            var className = types.getFullClassName(inst.getReturnType());
+            stackPush(1);
+            return "new " + className + NL;
+        }
     }
 
     public static String getTypeDescriptor(Type type) {
