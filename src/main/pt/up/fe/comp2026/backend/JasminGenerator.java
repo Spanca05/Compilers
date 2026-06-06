@@ -16,6 +16,8 @@ import pt.up.fe.specs.util.classmap.FunctionClassMap;
 import pt.up.fe.specs.util.exceptions.NotImplementedException;
 import pt.up.fe.specs.util.utilities.StringLines;
 
+import java.lang.annotation.ElementType;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -71,6 +73,7 @@ public class JasminGenerator {
         generators.put(AssignInstruction.class, this::generateAssign);
         generators.put(SingleOpInstruction.class, this::generateSingleOp);
         generators.put(LiteralElement.class, this::generateLiteral);
+        generators.put(ArrayOperand.class,this::generateArrayOperand);
         generators.put(Operand.class, this::generateOperand);
         generators.put(BinaryOpInstruction.class, this::generateBinaryOp);
         generators.put(ReturnInstruction.class, this::generateReturn);
@@ -236,14 +239,26 @@ public class JasminGenerator {
 
             var code = new StringBuilder();
             var lhs = assign.getDest();
-
-            code.append(apply(assign.getRhs()));
-
             var operand = (Operand) lhs;
-            var reg = currentMethod.getVarTable().get(operand.getName());
+            if (operand instanceof ArrayOperand arrayOperand){
+                var reg = currentMethod.getVarTable().get(arrayOperand.getName());
+                code.append(types.getLoad(reg)).append(NL);
+                stackPush(1);
 
-            code.append(types.getStore(reg)).append(NL);
-            stackPop(1);
+                var indexOperand =  arrayOperand.getIndexOperands().get(0);
+                code.append(generators.apply(indexOperand)).append(NL);
+
+                code.append(apply(assign.getRhs()));
+
+                code.append("iastore").append(NL);
+                stackPop(3);
+            } else {
+                var reg = currentMethod.getVarTable().get(operand.getName());
+                code.append(apply(assign.getRhs()));
+                code.append(types.getStore(reg)).append(NL);
+                stackPop(1);
+            }
+
 
             return code.toString();
         } finally {
@@ -265,6 +280,21 @@ public class JasminGenerator {
         var reg = currentMethod.getVarTable().get(operand.getName());
         stackPush(1);
         return types.getLoad(reg) + NL;
+    }
+
+    private String generateArrayOperand(ArrayOperand arrayOperand) {
+        var code = new StringBuilder();
+        var reg = currentMethod.getVarTable().get(arrayOperand.getName());
+        code.append(types.getLoad(reg)).append(NL);
+        stackPush(1);
+
+        var indexOperand = arrayOperand.getIndexOperands().get(0);
+        code.append(generators.apply(indexOperand));
+
+        code.append("iaload").append(NL);
+        stackPop(1);
+
+        return code.toString();
     }
 
 
@@ -381,10 +411,10 @@ public class JasminGenerator {
             stackPush(1);
             if (args.size() > 1){
                 code.append("multianewarray ");
-                for(int i = 0; i < args.size(); i++){
+                for(int i = 0; i < numDims; i++){
                     code.append("[");
                 }
-                code.append(elementType).append(" ").append(args.size()).append(" ").append(NL);
+                code.append(elementType).append(" ").append(numDims).append(" ").append(NL);
                 return code.toString();
             } else {
                 return code.toString() + "newarray " + "int" + NL;
