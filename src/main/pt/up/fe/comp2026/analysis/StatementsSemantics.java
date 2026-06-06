@@ -200,7 +200,14 @@ public class StatementsSemantics extends AnalysisVisitor {
             }
 
             if (lhsType instanceof JmmArrayType arrayType && rhsType != null) {
-                if (!rhsType.equals(arrayType.itemType())) {
+                JmmType elementType;
+                int remainingDimension = arrayType.dimension() - (children.size() - 1);
+                if (remainingDimension <= 0) {
+                    elementType = arrayType.itemType();
+                } else {
+                    elementType = new JmmArrayType(arrayType.itemType(), remainingDimension);
+                }
+                if (!rhsType.equals(elementType)) {
                     addReport(Report.newError(Stage.SEMANTIC,
                             NodeUtils.getLine(assignStmt), NodeUtils.getColumn(assignStmt),
                             "Cannot store value of type '" + rhsType +

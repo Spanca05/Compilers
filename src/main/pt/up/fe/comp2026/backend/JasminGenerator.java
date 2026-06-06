@@ -250,8 +250,7 @@ public class JasminGenerator {
                 code.append(generators.apply(indexOperand)).append(NL);
 
                 code.append(apply(assign.getRhs()));
-
-                code.append("iastore").append(NL);
+                code.append(arrayOperand.getType() instanceof ArrayType ? "aastore" : "iastore").append(NL);
                 stackPop(3);
             } else {
                 var reg = currentMethod.getVarTable().get(operand.getName());
