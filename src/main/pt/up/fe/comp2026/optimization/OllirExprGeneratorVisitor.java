@@ -268,7 +268,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         String ollirIntType = ollirTypes.toOllirType(TypeUtils.intType());
         // new int[a][b][c] {}
         var temp = ollirTypes.nextTemp();
-        if (!node.getChild(0).isInstance(ARGS) && !node.getParent().isInstance(ARGS)) {
+        if (!node.getChildren().isEmpty() && !node.getChild(0).isInstance(ARGS) && !node.getParent().isInstance(ARGS)) {
             code.append("new(array");
             for (var child : node.getChildren()) {
                 var ollirChild = visit(child);
@@ -276,21 +276,31 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                 computation.append(ollirChild.getComputation());
             }
             code.append(")").append(ollirArrayType);
-        } // new int[]{a,b,c}
+        }
         else {
-            var child = node.getChild(0);
-            computation.append(temp).append(ollirArrayType).append(SPACE).append(ASSIGN)
-                    .append(ollirArrayType).append(SPACE)
-                    .append("new(array").append(",").append(child.getNumChildren()).append(ollirIntType)
-                    .append(")").append(ollirArrayType).append(END_STMT);
+            if (node.getChildren().isEmpty()) {
+                // new int[]{}
+                computation.append(temp).append(ollirArrayType).append(SPACE).append(ASSIGN)
+                        .append(ollirArrayType).append(SPACE)
+                        .append("new(array,").append(0).append(ollirIntType)
+                        .append(")").append(ollirArrayType).append(END_STMT);
+            }
+            else {
+                // new int[]{a,b,c}
+                var child = node.getChild(0);
+                computation.append(temp).append(ollirArrayType).append(SPACE).append(ASSIGN)
+                        .append(ollirArrayType).append(SPACE)
+                        .append("new(array").append(",").append(child.getNumChildren()).append(ollirIntType)
+                        .append(")").append(ollirArrayType).append(END_STMT);
 
-            for (int i = 0; i < child.getNumChildren(); i++) {
-                var ollirArg = visit(child.getChild(i));
-                computation.append(temp).append(ollirArrayType).append("[").append(i).append(ollirIntType).append("]")
-                        .append(ollirIntType)
-                        .append(SPACE).append(ASSIGN).append(ollirIntType).append(SPACE).append(ollirArg.getCode())
-                        .append(END_STMT);
+                for (int i = 0; i < child.getNumChildren(); i++) {
+                    var ollirArg = visit(child.getChild(i));
+                    computation.append(temp).append(ollirArrayType).append("[").append(i).append(ollirIntType).append("]")
+                            .append(ollirIntType)
+                            .append(SPACE).append(ASSIGN).append(ollirIntType).append(SPACE).append(ollirArg.getCode())
+                            .append(END_STMT);
 
+                }
             }
             code.append(temp).append(ollirArrayType);
         }

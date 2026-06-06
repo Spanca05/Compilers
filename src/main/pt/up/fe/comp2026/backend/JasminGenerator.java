@@ -292,7 +292,7 @@ public class JasminGenerator {
         var indexOperand = arrayOperand.getIndexOperands().get(0);
         code.append(generators.apply(indexOperand));
 
-        code.append("iaload").append(NL);
+        code.append(arrayOperand.getType() instanceof ArrayType ? "aaload" : "iaload").append(NL);
         stackPop(1);
 
         return code.toString();
