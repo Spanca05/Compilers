@@ -80,6 +80,7 @@ public class JasminGenerator {
         generators.put(InvokeVirtualInstruction.class, this::generateInvokeVirtual);
         generators.put(InvokeSpecialInstruction.class, this::generateInvokeSpecial);
         generators.put(NewInstruction.class, this::generateNew);
+        generators.put(ArrayLengthInstruction.class, this::generateLength);
     }
 
     private void stackPush(int n) {
@@ -437,4 +438,12 @@ public class JasminGenerator {
         };
     }
 
+    private String generateLength(ArrayLengthInstruction arrayLength) {
+        var code = new StringBuilder();
+
+        code.append(apply(arrayLength.getOperands().get(0)));
+        code.append("arraylength").append(NL);
+
+        return code.toString();
+    }
 }

@@ -307,6 +307,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         StringBuilder computation = new StringBuilder();
         StringBuilder code = new StringBuilder();
 
+        computation.append(child.getComputation());
         computation.append(temp).append(ollirIntType).append(SPACE).append(ASSIGN).append(ollirIntType).append(SPACE)
                 .append(length).append(END_STMT);
         code.append(temp).append(ollirIntType);
