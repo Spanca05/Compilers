@@ -374,11 +374,21 @@ public class JasminGenerator {
         if (retType instanceof ArrayType arrayType) {
             var elementType = types.getTypeDescriptor(arrayType.getElementType());
             var numDims = arrayType.getNumDimensions();
-            for (var arg : inst.getArguments()) {
+            var args = inst.getArguments();
+            for (var arg : args) {
                 code.append(apply(arg));
             }
             stackPush(1);
-            return code.toString() + "newarray " + "int" + NL;
+            if (args.size() > 1){
+                code.append("multianewarray ");
+                for(int i = 0; i < args.size(); i++){
+                    code.append("[");
+                }
+                code.append(elementType).append(" ").append(args.size()).append(" ").append(NL);
+                return code.toString();
+            } else {
+                return code.toString() + "newarray " + "int" + NL;
+            }
         } else {
             var className = types.getFullClassName(inst.getReturnType());
             stackPush(1);
