@@ -102,6 +102,8 @@ expr:
 	expr '[' expr ']'											# ArrayAccessExpr
 	| expr '.' 'length'											# LengthExpr
 	| expr '.' name = ID ('(' args? ')')?						# MethodCallExpr
+	| op=('--' | '-') expr										# UnaryExpr
+	| op=('++' | '+') expr										# UnaryExpr
 	| expr op = ('*' | '/' | '%') expr							# BinaryExpr
 	| expr op = ('+' | '-') expr								# BinaryExpr
 	| expr op = ('<' | '>' | '<=' | '>=' | '==' | '!=') expr	# BinaryExpr
@@ -116,6 +118,4 @@ expr:
 	| value = BOOLEAN											# BooleanLiteral
 	| name = ID													# VarRefExpr
 	| THIS														# ThisExpr
-    | op=('--' | '-') expr                                      # UnaryExpr
-    | op=('++' | '+') expr                                      # UnaryExpr
 	;
