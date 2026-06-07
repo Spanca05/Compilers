@@ -38,6 +38,20 @@ public class JasminUtils {
             var key = splitted[splitted.length - 1];
             fullClassnames.put(key, fullImport.replace('.', '/'));
         }
+
+        // Resolve super class (may not be in imports if it's java.lang.*)
+        var superClass = ollirResult.getOllirClass().getSuperClass();
+        if (superClass != null && !superClass.isEmpty() && !fullClassnames.containsKey(superClass)) {
+            // Default to java/lang/<superClass> as fallback (covers Exception, etc.)
+            fullClassnames.put(superClass, "java/lang/" + superClass);
+        }
+    }
+
+    public String resolveClassName(String name) {
+        if (name.contains(".")) {
+            return name.replace('.', '/');
+        }
+        return fullClassnames.getOrDefault(name, name);
     }
 
 

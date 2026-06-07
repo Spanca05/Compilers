@@ -84,6 +84,7 @@ public class JasminGenerator {
         generators.put(ReturnInstruction.class, this::generateReturn);
         generators.put(InvokeVirtualInstruction.class, this::generateInvokeVirtual);
         generators.put(InvokeSpecialInstruction.class, this::generateInvokeSpecial);
+        generators.put(InvokeStaticInstruction.class, this::generateInvokeStatic);
         generators.put(NewInstruction.class, this::generateNew);
         generators.put(ArrayLengthInstruction.class, this::generateLength);
         generators.put(GetFieldInstruction.class, this::generateGetField);
@@ -158,27 +159,8 @@ public class JasminGenerator {
             code.append(".field ").append(modifier).append("'").append(field.getFieldName()).append("'").append(" ").append(descriptor).append(NL);
         }
 
-        // generate a single constructor method
-        var defaultConstructor = """
-                .method public <init>()V
-                    aload_0
-                    invokespecial %s/<init>()V
-                    return
-                .end method
-                """.formatted(fullSuperClass);
-
-        code.append(defaultConstructor).append(NL);
-
-        // generate code for all other methods
+        // generate all methods including the constructor
         for (var method : ollirResult.getOllirClass().getMethods()) {
-
-            // Ignore constructor, since there is always one constructor
-            // that receives no arguments, and has been already added
-            // previously
-            if (method.isConstructMethod()) {
-                continue;
-            }
-
             code.append(apply(method));
         }
 
@@ -196,12 +178,15 @@ public class JasminGenerator {
         var code = new StringBuilder();
 
         var modifier = "";
-        if (method.getMethodAccessModifier().equals(AccessModifier.PUBLIC))
+        if (method.isConstructMethod()) {
+            modifier = "public ";
+        } else if (method.getMethodAccessModifier().equals(AccessModifier.PUBLIC)) {
             modifier = types.getModifier(AccessModifier.PUBLIC);
-        if (method.getMethodAccessModifier().equals(AccessModifier.PRIVATE))
+        } else if (method.getMethodAccessModifier().equals(AccessModifier.PRIVATE)) {
             modifier = types.getModifier(AccessModifier.PRIVATE);
-        if (method.getMethodAccessModifier().equals(AccessModifier.PROTECTED))
+        } else if (method.getMethodAccessModifier().equals(AccessModifier.PROTECTED)) {
             modifier = types.getModifier(AccessModifier.PROTECTED);
+        }
 
         var staticMod = method.isStaticMethod() ? "static " : "";
 
@@ -240,6 +225,9 @@ public class JasminGenerator {
         code.append(TAB).append(".limit stack ").append(maxStackDepth).append(NL);
         code.append(TAB).append(".limit locals ").append(localsLimit).append(NL);
         code.append(TAB).append(bodyCode);
+        if (method.isConstructMethod()) {
+            code.append(TAB).append("return").append(NL);
+        }
         code.append(".end method\n");
 
         currentMethod = null;
@@ -462,7 +450,13 @@ public class JasminGenerator {
                 .append(methodName).append("(").append(paramDesc).append(")").append(retDesc).append(NL);
 
         stackPop(1 + inst.getArguments().size());
-        if (!isVoidType(inst.getReturnType())) stackPush(1);
+        if (!isVoidType(inst.getReturnType())) {
+            stackPush(1);
+            if (!isInsideAssignment) {
+                code.append("pop").append(NL);
+                stackPop(1);
+            }
+        }
 
         return code.toString();
     }
@@ -478,9 +472,9 @@ public class JasminGenerator {
         var superClass = inst.getSuperClass();
         String callerClass;
         if (superClass.isPresent()) {
-            callerClass = superClass.get().replace('.', '/');
+            callerClass = types.resolveClassName(superClass.get());
         } else {
-            callerClass = types.getFullClassName(inst.getCaller().getType());
+            callerClass = types.resolveClassName(types.getFullClassName(inst.getCaller().getType()));
         }
 
         var methodName = ((LiteralElement) inst.getMethodName()).getLiteral().replace("\"", "");
@@ -494,6 +488,35 @@ public class JasminGenerator {
 
         stackPop(1 + inst.getArguments().size());
         if (!isVoidType(inst.getReturnType())) stackPush(1);
+
+        return code.toString();
+    }
+
+    private String generateInvokeStatic(InvokeStaticInstruction inst) {
+        var code = new StringBuilder();
+
+        for (var arg : inst.getArguments()) {
+            code.append(apply(arg));
+        }
+
+        var callerClass = types.getFullClassName(inst.getCaller().getType());
+        var methodName = ((LiteralElement) inst.getMethodName()).getLiteral().replace("\"", "");
+        var paramDesc = inst.getArguments().stream()
+                .map(a -> types.getTypeDescriptor(a.getType()))
+                .collect(Collectors.joining());
+        var retDesc = types.getTypeDescriptor(inst.getReturnType());
+
+        code.append("invokestatic ").append(callerClass).append("/")
+                .append(methodName).append("(").append(paramDesc).append(")").append(retDesc).append(NL);
+
+        stackPop(inst.getArguments().size());
+        if (!isVoidType(inst.getReturnType())) {
+            stackPush(1);
+            if (!isInsideAssignment) {
+                code.append("pop").append(NL);
+                stackPop(1);
+            }
+        }
 
         return code.toString();
     }
