@@ -1,30 +1,32 @@
 # Compiler Project
 
-For the last delivery (CP3), complete the following sections.
-
 ## Participation
 
-The sum of the participations should be 100%, for a group of four elements with balanced participation, this corresponds to 25% participation each.
+Cláudio Meireles, up202306618 - 25% \
+Leonardo Carvalho, up202307152 - 25% \
+Miguel Pereira, up202304387 - 25% \
+Vasco Vieira, up202307797 - 25%
 
-Cláudio Meireles - [TBD]% \
-Leonardo Carvalho - [TBD]% \
-Miguel Pereira - [TBD]% \
-Vasco Vieira - [TBD]%
+## Self-Evaluation
+
+Project: 19
+Cláudio Meireles: 19
+Leonardo Carvalho: 19
+Miguel Pereira: 19
+Vasco Vieira: 19
+
+## Extensions
+
+We have implemented everything that was proposed.
 
 ## Declaration of AI Tools Used
-
-Please choose one of the two options about AI tools use. In case tools where used, enumerate which ones, and the specific use.
-
-Finally, check the box regarding responsibility for the work.
-
-AI tools/services used in this work:
 
 The following tools were used:
 
 - Claude: Research / guidance
 - ChatGPT: Research / guidance
 
-All content has been reviewed, understood, validated, and we assume full responsibility for the work in this repository.
+[X] All content has been reviewed, understood, validated, and we assume full responsibility for the work in this repository.
 
 # Repository Structure
 
