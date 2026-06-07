@@ -37,7 +37,7 @@ public class AstOptimizer {
                     if (current == null)
                         continue;
 
-                    changed = folder.run(method)
+                    changed |= folder.run(method)
                             | propagator.run(method, current)
                             | brancher.run(method)
                             | dce.run(method, current);
