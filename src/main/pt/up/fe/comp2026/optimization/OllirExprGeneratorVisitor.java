@@ -358,8 +358,16 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
 
         if (node.getNumChildren() > 1) {
             var args = node.getChild(1);
-            for (var arg : args.getChildren()) {
-                var ollirArg = visit(arg);
+            var methodParams = method.getFirst().parameters();
+            for (int i = 0; i < args.getNumChildren(); i++) {
+                var arg = args.getChild(i);
+                OllirExprResult ollirArg;
+                if (arg.isInstance(THIS_EXPR) && i < methodParams.size()) {
+                    var paramOllirType = ollirTypes.toOllirType(methodParams.get(i).type());
+                    ollirArg = new OllirExprResult("this" + paramOllirType);
+                } else {
+                    ollirArg = visit(arg);
+                }
                 computation.append(ollirArg.getComputation());
                 argstr.append(", ").append(ollirArg.getCode());
             }
