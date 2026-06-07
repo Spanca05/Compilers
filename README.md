@@ -9,10 +9,10 @@ Vasco Vieira, up202307797 - 25%
 
 ## Self-Evaluation
 
-Project: 19
-Cláudio Meireles: 19
-Leonardo Carvalho: 19
-Miguel Pereira: 19
+Project: 19 \
+Cláudio Meireles: 19 \
+Leonardo Carvalho: 19 \
+Miguel Pereira: 19 \
 Vasco Vieira: 19
 
 ## Extensions
