@@ -384,6 +384,7 @@ public class JasminGenerator {
             case SUB -> "sub";
             case MUL -> "mul";
             case DIV -> "div";
+            case REM -> "rem";
             default -> throw new NotImplementedException(binaryOp.getOperation().getOpType());
         };
 

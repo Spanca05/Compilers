@@ -543,19 +543,30 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                     .append(SPACE).append(op).append(typeStr).append(SPACE)
                     .append(operand.getCode()).append(END_STMT);
             code.append(temp).append(typeStr);
-        } else if (op.equals("++")) {
+        } else if (op.equals("++") || op.equals("--")) {
+            var arithOp = op.equals("++") ? "+.i32" : "-.i32";
+            var childNode = node.getChild(0);
             computation.append(operand.getCode())
                     .append(SPACE).append(ASSIGN).append(typeStr)
                     .append(SPACE).append(operand.getCode())
-                    .append(SPACE).append("+.i32").append(SPACE)
+                    .append(SPACE).append(arithOp).append(SPACE)
                     .append("1").append(typeStr).append(END_STMT);
-            code.append(operand.getCode());
-        } else if (op.equals("--")) {
-            computation.append(operand.getCode())
-                    .append(SPACE).append(ASSIGN).append(typeStr)
-                    .append(SPACE).append(operand.getCode())
-                    .append(SPACE).append("-.i32").append(SPACE)
-                    .append("1").append(typeStr).append(END_STMT);
+            if (childNode.isInstance(VAR_REF_EXPR)) {
+                var id = ollirTypes.sanitizeId(childNode.get("name"));
+                if (table.getField(id).isPresent()
+                        && currentMethod.getLocalVariable(id).isEmpty()
+                        && currentMethod.getParameter(id).isEmpty()) {
+                    computation.append("putfield(this, ").append(id).append(typeStr)
+                            .append(", ").append(operand.getCode()).append(").V").append(END_STMT);
+                }
+            } else if (childNode.isInstance(ARRAY_ACCESS_EXPR)) {
+                var arrayCode = visit(childNode.getChild(0)).getCode();
+                var indexCode = visit(childNode.getChild(1)).getCode();
+                var elemType = ollirTypes.toOllirType(types.getExprType(childNode));
+                computation.append(arrayCode).append("[").append(indexCode).append("]").append(elemType)
+                        .append(SPACE).append(ASSIGN).append(elemType)
+                        .append(SPACE).append(operand.getCode()).append(END_STMT);
+            }
             code.append(operand.getCode());
         }
 
