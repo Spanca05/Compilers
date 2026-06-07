@@ -200,7 +200,14 @@ public class StatementsSemantics extends AnalysisVisitor {
             }
 
             if (lhsType instanceof JmmArrayType arrayType && rhsType != null) {
-                if (!rhsType.equals(arrayType.itemType())) {
+                JmmType elementType;
+                int remainingDimension = arrayType.dimension() - (children.size() - 1);
+                if (remainingDimension <= 0) {
+                    elementType = arrayType.itemType();
+                } else {
+                    elementType = new JmmArrayType(arrayType.itemType(), remainingDimension);
+                }
+                if (!rhsType.equals(elementType)) {
                     addReport(Report.newError(Stage.SEMANTIC,
                             NodeUtils.getLine(assignStmt), NodeUtils.getColumn(assignStmt),
                             "Cannot store value of type '" + rhsType +
@@ -323,50 +330,66 @@ public class StatementsSemantics extends AnalysisVisitor {
     }
 
     private Void visitForStmt(JmmNode forStmt, SymbolTable table) {
-        var first = forStmt.getChild(0);
-        var condition = forStmt.getChild(1);
-        var second = forStmt.getChild(2);
+        if (forStmt.getNumChildren() == 2) {
+            // for as while - only condition and block
+            var condition = forStmt.getChild(0);
+            var block = forStmt.getChild(1);
 
-        var firstType = TypeUtils.with(table).getExprType(first);
-        var condType = TypeUtils.with(table).getExprType(condition);
-        var secondType = TypeUtils.with(table).getExprType(second);
+            var condType = TypeUtils.with(table).getExprType(condition);
+            if (condType != JmmPrimitiveType.BOOLEAN) {
+                addReport(Report.newError(
+                        Stage.SEMANTIC,
+                        NodeUtils.getLine(condition),
+                        NodeUtils.getColumn(condition),
+                        "For condition must have type boolean.",
+                        null));
+            }
+        } else {
 
-        if (firstType != JmmPrimitiveType.INT) {
-            var message = "For first expression must have type int. \n";
-            addReport(Report.newError(
-                    Stage.SEMANTIC,
-                    NodeUtils.getLine(condition),
-                    NodeUtils.getColumn(condition),
-                    message,
-                    null));
+                var first = forStmt.getChild(0);
+                var condition = forStmt.getChild(1);
+                var second = forStmt.getChild(2);
 
-            return null;
-        }
+                var firstType = TypeUtils.with(table).getExprType(first);
+                var condType = TypeUtils.with(table).getExprType(condition);
+                var secondType = TypeUtils.with(table).getExprType(second);
 
-        if (condType != JmmPrimitiveType.BOOLEAN) {
-            var message = "For condition must have type boolean. \n";
-            addReport(Report.newError(
-                    Stage.SEMANTIC,
-                    NodeUtils.getLine(condition),
-                    NodeUtils.getColumn(condition),
-                    message,
-                    null));
+                if (firstType != JmmPrimitiveType.INT) {
+                    var message = "For first expression must have type int. \n";
+                    addReport(Report.newError(
+                            Stage.SEMANTIC,
+                            NodeUtils.getLine(condition),
+                            NodeUtils.getColumn(condition),
+                            message,
+                            null));
 
-            return null;
-        }
+                    return null;
+                }
 
-        if (secondType != JmmPrimitiveType.INT) {
-            var message = "For second expression must have type int.";
-            addReport(Report.newError(
-                    Stage.SEMANTIC,
-                    NodeUtils.getLine(condition),
-                    NodeUtils.getColumn(condition),
-                    message,
-                    null));
+                if (condType != JmmPrimitiveType.BOOLEAN) {
+                    var message = "For condition must have type boolean. \n";
+                    addReport(Report.newError(
+                            Stage.SEMANTIC,
+                            NodeUtils.getLine(condition),
+                            NodeUtils.getColumn(condition),
+                            message,
+                            null));
 
-            return null;
-        }
+                    return null;
+                }
 
+                if (secondType != JmmPrimitiveType.INT) {
+                    var message = "For second expression must have type int.";
+                    addReport(Report.newError(
+                            Stage.SEMANTIC,
+                            NodeUtils.getLine(condition),
+                            NodeUtils.getColumn(condition),
+                            message,
+                            null));
+
+                    return null;
+                }
+            }
         return null;
     }
 }

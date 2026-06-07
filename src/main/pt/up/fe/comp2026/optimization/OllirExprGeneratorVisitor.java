@@ -268,7 +268,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         String ollirIntType = ollirTypes.toOllirType(TypeUtils.intType());
         // new int[a][b][c] {}
         var temp = ollirTypes.nextTemp();
-        if (!node.getChild(0).isInstance(ARGS)) {
+        if (!node.getChildren().isEmpty() && !node.getChild(0).isInstance(ARGS) && !node.getParent().isInstance(ARGS)) {
             code.append("new(array");
             for (var child : node.getChildren()) {
                 var ollirChild = visit(child);
@@ -276,21 +276,31 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                 computation.append(ollirChild.getComputation());
             }
             code.append(")").append(ollirArrayType);
-        } // new int[]{a,b,c}
+        }
         else {
-            var child = node.getChild(0);
-            computation.append(temp).append(ollirArrayType).append(SPACE).append(ASSIGN)
-                    .append(ollirArrayType).append(SPACE)
-                    .append("new(array").append(",").append(child.getNumChildren()).append(ollirIntType)
-                    .append(")").append(ollirArrayType).append(END_STMT);
+            if (node.getChildren().isEmpty()) {
+                // new int[]{}
+                computation.append(temp).append(ollirArrayType).append(SPACE).append(ASSIGN)
+                        .append(ollirArrayType).append(SPACE)
+                        .append("new(array,").append(0).append(ollirIntType)
+                        .append(")").append(ollirArrayType).append(END_STMT);
+            }
+            else {
+                // new int[]{a,b,c}
+                var child = node.getChild(0);
+                computation.append(temp).append(ollirArrayType).append(SPACE).append(ASSIGN)
+                        .append(ollirArrayType).append(SPACE)
+                        .append("new(array").append(",").append(child.getNumChildren()).append(ollirIntType)
+                        .append(")").append(ollirArrayType).append(END_STMT);
 
-            for (int i = 0; i < child.getNumChildren(); i++) {
-                var ollirArg = visit(child.getChild(i));
-                computation.append(temp).append(ollirArrayType).append("[").append(i).append(ollirIntType).append("]")
-                        .append(ollirIntType)
-                        .append(SPACE).append(ASSIGN).append(ollirIntType).append(SPACE).append(ollirArg.getCode())
-                        .append(END_STMT);
+                for (int i = 0; i < child.getNumChildren(); i++) {
+                    var ollirArg = visit(child.getChild(i));
+                    computation.append(temp).append(ollirArrayType).append("[").append(i).append(ollirIntType).append("]")
+                            .append(ollirIntType)
+                            .append(SPACE).append(ASSIGN).append(ollirIntType).append(SPACE).append(ollirArg.getCode())
+                            .append(END_STMT);
 
+                }
             }
             code.append(temp).append(ollirArrayType);
         }
@@ -307,6 +317,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         StringBuilder computation = new StringBuilder();
         StringBuilder code = new StringBuilder();
 
+        computation.append(child.getComputation());
         computation.append(temp).append(ollirIntType).append(SPACE).append(ASSIGN).append(ollirIntType).append(SPACE)
                 .append(length).append(END_STMT);
         code.append(temp).append(ollirIntType);
@@ -347,8 +358,16 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
 
         if (node.getNumChildren() > 1) {
             var args = node.getChild(1);
-            for (var arg : args.getChildren()) {
-                var ollirArg = visit(arg);
+            var methodParams = method.getFirst().parameters();
+            for (int i = 0; i < args.getNumChildren(); i++) {
+                var arg = args.getChild(i);
+                OllirExprResult ollirArg;
+                if (arg.isInstance(THIS_EXPR) && i < methodParams.size()) {
+                    var paramOllirType = ollirTypes.toOllirType(methodParams.get(i).type());
+                    ollirArg = new OllirExprResult("this" + paramOllirType);
+                } else {
+                    ollirArg = visit(arg);
+                }
                 computation.append(ollirArg.getComputation());
                 argstr.append(", ").append(ollirArg.getCode());
             }
@@ -511,26 +530,43 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         var computation = new StringBuilder();
         computation.append(operand.getComputation());
 
-        if (op.equals("-") || op.equals("+")) {
+        if (op.equals("!")) {
+            computation.append(temp).append(typeStr)
+                    .append(SPACE).append(ASSIGN).append(typeStr)
+                    .append(SPACE).append("!").append(typeStr).append(SPACE)
+                    .append(operand.getCode()).append(END_STMT);
+            code.append(temp).append(typeStr);
+        } else if (op.equals("-") || op.equals("+")) {
             computation.append(temp).append(typeStr)
                     .append(SPACE).append(ASSIGN).append(typeStr)
                     .append(SPACE).append("0").append(typeStr)
                     .append(SPACE).append(op).append(typeStr).append(SPACE)
                     .append(operand.getCode()).append(END_STMT);
             code.append(temp).append(typeStr);
-        } else if (op.equals("++")) {
+        } else if (op.equals("++") || op.equals("--")) {
+            var arithOp = op.equals("++") ? "+.i32" : "-.i32";
+            var childNode = node.getChild(0);
             computation.append(operand.getCode())
                     .append(SPACE).append(ASSIGN).append(typeStr)
                     .append(SPACE).append(operand.getCode())
-                    .append(SPACE).append("+.i32").append(SPACE)
+                    .append(SPACE).append(arithOp).append(SPACE)
                     .append("1").append(typeStr).append(END_STMT);
-            code.append(operand.getCode());
-        } else if (op.equals("--")) {
-            computation.append(operand.getCode())
-                    .append(SPACE).append(ASSIGN).append(typeStr)
-                    .append(SPACE).append(operand.getCode())
-                    .append(SPACE).append("-.i32").append(SPACE)
-                    .append("1").append(typeStr).append(END_STMT);
+            if (childNode.isInstance(VAR_REF_EXPR)) {
+                var id = ollirTypes.sanitizeId(childNode.get("name"));
+                if (table.getField(id).isPresent()
+                        && currentMethod.getLocalVariable(id).isEmpty()
+                        && currentMethod.getParameter(id).isEmpty()) {
+                    computation.append("putfield(this, ").append(id).append(typeStr)
+                            .append(", ").append(operand.getCode()).append(").V").append(END_STMT);
+                }
+            } else if (childNode.isInstance(ARRAY_ACCESS_EXPR)) {
+                var arrayCode = visit(childNode.getChild(0)).getCode();
+                var indexCode = visit(childNode.getChild(1)).getCode();
+                var elemType = ollirTypes.toOllirType(types.getExprType(childNode));
+                computation.append(arrayCode).append("[").append(indexCode).append("]").append(elemType)
+                        .append(SPACE).append(ASSIGN).append(elemType)
+                        .append(SPACE).append(operand.getCode()).append(END_STMT);
+            }
             code.append(operand.getCode());
         }
 

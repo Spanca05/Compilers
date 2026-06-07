@@ -25,10 +25,11 @@ public class JasminUtils {
         fullClassnames = new HashMap<>();
 
         // Predefined classnames
-        fullClassnames.put("this", ollirResult.getOllirClass().getClassName());
-        // This will be get caught as STRING OLLIR element type.
-        // And classes cannot be named String, since it is an OLLIR reserved keyword
-        //imports.put("String", "java/lang/String");
+        var selfFqn = ollirResult.getOllirClass().getClassFullyQualifiedName().replace('.', '/');
+        fullClassnames.put("this", selfFqn);
+        fullClassnames.put(ollirResult.getOllirClass().getClassName(), selfFqn);
+        fullClassnames.put("String", "java/lang/String");
+        fullClassnames.put("Object", "java/lang/Object");
 
         for (var fullImport : ollirResult.getOllirClass().getImports()) {
             var splitted = fullImport.split("\\.");
@@ -37,13 +38,40 @@ public class JasminUtils {
             var key = splitted[splitted.length - 1];
             fullClassnames.put(key, fullImport.replace('.', '/'));
         }
+
+        // Resolve super class (may not be in imports if it's java.lang.*)
+        var superClass = ollirResult.getOllirClass().getSuperClass();
+        if (superClass != null && !superClass.isEmpty() && !fullClassnames.containsKey(superClass)) {
+            // Default to java/lang/<superClass> as fallback (covers Exception, etc.)
+            fullClassnames.put(superClass, "java/lang/" + superClass);
+        }
+    }
+
+    public String resolveClassName(String name) {
+        if (name.contains(".")) {
+            return name.replace('.', '/');
+        }
+        return fullClassnames.getOrDefault(name, name);
     }
 
 
 
     public String getTypePrefix(Type type) {
-        System.out.println("[TODO] JasminUtils.getTypePrefix(): Assumes it is always int, needs to be expanded");
-        return "i";
+        if (type instanceof BuiltinType b) {
+            return switch (b.getKind()) {
+                case INT32, BOOLEAN -> "i";
+                case VOID -> "";
+                case STRING -> "a";
+            };
+        }
+        return "a";
+    }
+
+    public String getFullClassName(Type type) {
+        if (type instanceof ClassType classType) {
+            return fullClassnames.getOrDefault(classType.getName(), classType.getName());
+        }
+        throw new RuntimeException("Expected class type, got: " + type);
     }
 
     public String getTypeDescriptor(Type type) {
@@ -51,19 +79,44 @@ public class JasminUtils {
         if (type instanceof BuiltinType builtinType) {
             return switch (builtinType.getKind()) {
                 case INT32 -> "I";
-                default ->
-                        throw new RuntimeException("Not implemented for element type '" + builtinType.getKind() + "'");
+                case BOOLEAN -> "Z";
+                case VOID -> "V";
+                default -> "";
             };
         }
-
-        throw new RuntimeException("Not implemented for element type '" + type + "'");
+        if (type instanceof ArrayType arrayType) {
+            return "[".repeat(arrayType.getNumDimensions()) + getTypeDescriptor(arrayType.getElementType());
+        }
+        if (type instanceof ClassType classType) {
+            var fullName = "";
+            if (fullClassnames.containsKey(classType.getName())) {
+                fullName = fullClassnames.get(classType.getName());
+            }
+            else if (classType.getName().equals("Object")) {
+                fullName = "java/lang/Object";
+            }
+            else if (classType.getName().equals("String")) {
+                fullName = "java/lang/String";
+            }
+            else {
+                fullName = classType.getName();
+            }
+            return "L" + fullName + ";";
+        }
+        throw new RuntimeException("Unknown type: '" + type + "'");
     }
 
 
 
 
     public String getModifier(AccessModifier accessModifier) {
-        return accessModifier.name().toLowerCase() + " ";
+        return switch (accessModifier) {
+            case DEFAULT -> "";
+            case PUBLIC -> "public ";
+            case PRIVATE -> "private ";
+            case PROTECTED -> "protected ";
+            default -> accessModifier.name().toLowerCase() + " ";
+        };
     }
 
     public String getLoad(Descriptor reg) {
@@ -79,7 +132,5 @@ public class JasminUtils {
 
         return prefix + "store " + value;
     }
-
-
 
 }
