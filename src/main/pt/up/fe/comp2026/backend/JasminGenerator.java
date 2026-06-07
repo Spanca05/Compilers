@@ -78,8 +78,8 @@ public class JasminGenerator {
         generators.put(LiteralElement.class, this::generateLiteral);
         generators.put(ArrayOperand.class,this::generateArrayOperand);
         generators.put(Operand.class, this::generateOperand);
-        generators.put(OpCondInstruction.class, this::generateOpCond);
         generators.put(UnaryOpInstruction.class, this::generateUnaryOp);
+        generators.put(OpCondInstruction.class, this::generateOpCond);
         generators.put(BinaryOpInstruction.class, this::generateBinaryOp);
         generators.put(ReturnInstruction.class, this::generateReturn);
         generators.put(InvokeVirtualInstruction.class, this::generateInvokeVirtual);
@@ -328,27 +328,10 @@ public class JasminGenerator {
     }
 
     private String generateOpCond(OpCondInstruction opCond) {
-
         var code = new StringBuilder();
-
-        // get operands
-        code.append(apply(opCond.getOperands().get(0)));
-        code.append(apply(opCond.getOperands().get(1)));
-
-        // apply operation
-        var op = switch (opCond.getCondition().getOperation().getOpType()) {
-            case LTH -> "if_icmplt";
-            case GTH -> "if_icmpgt";
-            case LTE -> "if_icmple";
-            case GTE -> "if_icmpge";
-            case EQ  -> "if_icmpeq";
-            case NEQ -> "if_icmpne";
-            default  -> throw new NotImplementedException(opCond.getCondition().getOperation().getOpType());
-        };
-
-        code.append(op).append(" ").append(opCond.getLabel()).append(NL);
-        stackPop(2);
-
+        code.append(apply(opCond.getCondition()));
+        code.append("ifne ").append(opCond.getLabel()).append(NL);
+        stackPop(1);
         return code.toString();
     }
 
@@ -379,22 +362,20 @@ public class JasminGenerator {
 
     private String generateBinaryOp(BinaryOpInstruction binaryOp) {
 
-        var code = new StringBuilder();
+        var opType = binaryOp.getOperation().getOpType();
 
+        if (opType == OperationType.LTH || opType == OperationType.LTE || opType == OperationType.GTH ||
+                opType == OperationType.GTE || opType == OperationType.EQ  || opType == OperationType.NEQ) {
+            return generateComparison(binaryOp);
+        }
+        var code = new StringBuilder();
         // load values on the left and on the right
         code.append(apply(binaryOp.getLeftOperand()));
         code.append(apply(binaryOp.getRightOperand()));
 
-
         var typePrefix = types.getTypePrefix(binaryOp.getOperation().getTypeInfo());
-        var isComp = false;
         // apply operation
-        var op = switch (binaryOp.getOperation().getOpType()) {
-            case LTH, LTE, GTH, GTE, EQ, NEQ -> {
-                isComp = true;
-                code.append(generateComparison(binaryOp));
-                yield "";
-            }
+        var op = switch (opType) {
             case ADD -> "add";
             case SUB -> "sub";
             case MUL -> "mul";
@@ -402,9 +383,7 @@ public class JasminGenerator {
             default -> throw new NotImplementedException(binaryOp.getOperation().getOpType());
         };
 
-        if (!isComp) {
-            code.append(typePrefix).append(op).append(NL);
-        }
+        code.append(typePrefix).append(op).append(NL);
         stackPop(1);
 
         return code.toString();

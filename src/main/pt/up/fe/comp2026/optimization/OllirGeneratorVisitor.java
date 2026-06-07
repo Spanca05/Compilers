@@ -367,6 +367,27 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
     }
 
     private String visitForStmt(JmmNode node, Void unused) {
+        if (node.getNumChildren() == 2) {
+            // for as while
+            var checkCond = exprVisitor.visit(node.getChild(0));
+            var block = visit(node.getChild(1));
+
+            var beginLabel = ollirTypes.nextTemp("loop_begin_");
+            var exitLabel = ollirTypes.nextTemp("loop_exit_");
+            var bodyLabel = ollirTypes.nextTemp("loop_body_");
+
+            var code = new StringBuilder();
+            code.append(beginLabel).append(":").append(NL);
+            code.append(checkCond.getComputation());
+            code.append("if (").append(checkCond.getCode()).append(") goto ").append(bodyLabel).append(END_STMT);
+            code.append("goto ").append(exitLabel).append(END_STMT);
+            code.append(bodyLabel).append(":").append(NL);
+            code.append(block);
+            code.append("goto ").append(beginLabel).append(END_STMT);
+            code.append(exitLabel).append(":").append(NL);
+
+            return code.toString();
+        }
         var varName = node.get("var");
         var varType = getVarType(varName);
         var varTypeStr = ollirTypes.toOllirType(varType);
