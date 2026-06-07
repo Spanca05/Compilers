@@ -530,7 +530,13 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         var computation = new StringBuilder();
         computation.append(operand.getComputation());
 
-        if (op.equals("-") || op.equals("+")) {
+        if (op.equals("!")) {
+            computation.append(temp).append(typeStr)
+                    .append(SPACE).append(ASSIGN).append(typeStr)
+                    .append(SPACE).append("!").append(typeStr).append(SPACE)
+                    .append(operand.getCode()).append(END_STMT);
+            code.append(temp).append(typeStr);
+        } else if (op.equals("-") || op.equals("+")) {
             computation.append(temp).append(typeStr)
                     .append(SPACE).append(ASSIGN).append(typeStr)
                     .append(SPACE).append("0").append(typeStr)

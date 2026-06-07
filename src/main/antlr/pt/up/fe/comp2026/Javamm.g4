@@ -105,12 +105,12 @@ expr:
 	| expr op = ('*' | '/' | '%') expr							# BinaryExpr
 	| expr op = ('+' | '-') expr								# BinaryExpr
 	| expr op = ('<' | '>' | '<=' | '>=' | '==' | '!=') expr	# BinaryExpr
+	| '!' expr													# NegExpr
 	| expr op = ('&&' | '||') expr								# BinaryExpr
 	| name = ID '(' args? ')'									# FunctionCall
 	| NEW INT '[' ']' '{' args? '}'								# ArrayExpr
 	| NEW INT (open += '[' expr ']')+ (open += '[' ']')*		# ArrayExpr
 	| NEW name = ID '(' args? ')'								# NewClassExpr
-	| '!' expr													# NegExpr
 	| '(' expr ')'												# ParentesesExpr
 	| value = INTEGER											# IntegerLiteral
 	| value = BOOLEAN											# BooleanLiteral
