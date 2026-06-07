@@ -96,7 +96,17 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
             var targetTypeStr = ollirTypes.toOllirType(targetType);
             ollirTypes.toOllirType(TypeUtils.intType());
 
-            var lhs = new StringBuilder(ollirTypes.sanitizeId(varName)).append(baseTypeStr);
+            StringBuilder lhs;
+            if (isField(varName)) {
+                var arrayTemp = ollirTypes.nextTemp() + baseTypeStr;
+                code.append(arrayTemp).append(SPACE).append(ASSIGN).append(baseTypeStr)
+                        .append(SPACE).append("getfield(this, ")
+                        .append(ollirTypes.sanitizeId(varName)).append(baseTypeStr)
+                        .append(")").append(baseTypeStr).append(END_STMT);
+                lhs = new StringBuilder(arrayTemp);
+            } else {
+                lhs = new StringBuilder(ollirTypes.sanitizeId(varName)).append(baseTypeStr);
+            }
 
             for (int i = 1; i < numIndexes; i++) {
                 var index = exprVisitor.visit(node.getChild(i - 1));
@@ -559,6 +569,12 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
     private boolean isArrayStore(JmmNode assignNode) {
         return assignNode.getNumChildren() > 1;
+    }
+
+    private boolean isField(String varName) {
+        return table.getField(varName).isPresent()
+                && currentMethod.getLocalVariable(varName).isEmpty()
+                && currentMethod.getParameter(varName).isEmpty();
     }
 
     private boolean isSimpleArg(String code) {
