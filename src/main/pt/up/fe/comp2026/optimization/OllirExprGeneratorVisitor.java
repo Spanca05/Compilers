@@ -295,6 +295,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
 
                 for (int i = 0; i < child.getNumChildren(); i++) {
                     var ollirArg = visit(child.getChild(i));
+                    computation.append(ollirArg.getComputation());
                     computation.append(temp).append(ollirArrayType).append("[").append(i).append(ollirIntType).append("]")
                             .append(ollirIntType)
                             .append(SPACE).append(ASSIGN).append(ollirIntType).append(SPACE).append(ollirArg.getCode())
@@ -503,18 +504,20 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                 .append(classType)
                 .append(END_STMT);
 
-        computation.append("invokespecial(")
-                .append(code)
-                .append(", \"<init>\"");
+        var argstr = new StringBuilder();
         if (node.getNumChildren() >= 1) {
             for (var arg : node.getChild(0).getChildren()) {
                 var ollirArg = visit(arg);
-                computation.append(",").append(ollirArg.getCode());
+                computation.append(ollirArg.getComputation());
+                argstr.append(",").append(ollirArg.getCode());
             }
-
         }
 
-        computation.append(").V").append(END_STMT);
+        computation.append("invokespecial(")
+                .append(code)
+                .append(", \"<init>\"")
+                .append(argstr)
+                .append(").V").append(END_STMT);
 
         return new OllirExprResult(code, computation.toString());
     }
@@ -560,8 +563,12 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                             .append(", ").append(operand.getCode()).append(").V").append(END_STMT);
                 }
             } else if (childNode.isInstance(ARRAY_ACCESS_EXPR)) {
-                var arrayCode = visit(childNode.getChild(0)).getCode();
-                var indexCode = visit(childNode.getChild(1)).getCode();
+                var arrayResult = visit(childNode.getChild(0));
+                var indexResult = visit(childNode.getChild(1));
+                computation.append(arrayResult.getComputation());
+                computation.append(indexResult.getComputation());
+                var arrayCode = arrayResult.getCode();
+                var indexCode = indexResult.getCode();
                 var elemType = ollirTypes.toOllirType(types.getExprType(childNode));
                 computation.append(arrayCode).append("[").append(indexCode).append("]").append(elemType)
                         .append(SPACE).append(ASSIGN).append(elemType)
