@@ -44,7 +44,7 @@ public class JasminGenerator {
     private String code;
 
     private Method currentMethod;
-
+    private int labelCounter;
     boolean isInsideAssignment;
 
     private final JasminUtils types;
@@ -60,6 +60,7 @@ public class JasminGenerator {
         reports = new ArrayList<>();
         code = null;
         currentMethod = null;
+        labelCounter = 0;
         isInsideAssignment = false;
         stackDepth = 0;
         maxStackDepth = 0;
@@ -72,9 +73,13 @@ public class JasminGenerator {
         generators.put(Method.class, this::generateMethod);
         generators.put(AssignInstruction.class, this::generateAssign);
         generators.put(SingleOpInstruction.class, this::generateSingleOp);
+        generators.put(SingleOpCondInstruction.class, this::generateSingleOpCond);
+        generators.put(GotoInstruction.class, this::generateGoto);
         generators.put(LiteralElement.class, this::generateLiteral);
         generators.put(ArrayOperand.class,this::generateArrayOperand);
         generators.put(Operand.class, this::generateOperand);
+        generators.put(OpCondInstruction.class, this::generateOpCond);
+        generators.put(UnaryOpInstruction.class, this::generateUnaryOp);
         generators.put(BinaryOpInstruction.class, this::generateBinaryOp);
         generators.put(ReturnInstruction.class, this::generateReturn);
         generators.put(InvokeVirtualInstruction.class, this::generateInvokeVirtual);
@@ -180,7 +185,7 @@ public class JasminGenerator {
 
     private String generateMethod(Method method) {
         currentMethod = method;
-
+        labelCounter = 0;
         // Initialize utils, to have fresh labels
         utils = new OptUtils(null);
         stackDepth = 0;
@@ -213,7 +218,12 @@ public class JasminGenerator {
 
         // Generate body first so stack/locals limits can be computed
         var bodyCode = new StringBuilder();
+
         for (var inst : method.getInstructions()) {
+            var labels = currentMethod.getLabels(inst);
+            for (var label : labels) {
+                bodyCode.append(label).append(":").append(NL);
+            }
             var instCode = StringLines.getLines(apply(inst)).stream()
                     .collect(Collectors.joining(NL + TAB, TAB, NL));
 
@@ -270,12 +280,32 @@ public class JasminGenerator {
         return apply(singleOp.getSingleOperand());
     }
 
+    private String generateSingleOpCond(SingleOpCondInstruction singleOp) {
+        var code = new StringBuilder();
+        code.append(apply(singleOp.getCondition()));
+        code.append("ifne ").append(singleOp.getLabel());
+        return code.toString();
+    }
+
+    private String generateGoto(GotoInstruction gotoInst) {
+        return "goto " + gotoInst.getLabel() + NL;
+    }
+
     private String generateLiteral(LiteralElement literal) {
         stackPush(1);
         return "ldc " + literal.getLiteral() + NL;
     }
 
     private String generateOperand(Operand operand) {
+        if (operand.getName().equals("true")) {
+            stackPush(1);
+            return "ldc 1" + NL;
+        }
+        if (operand.getName().equals("false")) {
+            stackPush(1);
+            return "ldc 0" + NL;
+        }
+
         // get register
         var reg = currentMethod.getVarTable().get(operand.getName());
         stackPush(1);
@@ -297,6 +327,55 @@ public class JasminGenerator {
         return code.toString();
     }
 
+    private String generateOpCond(OpCondInstruction opCond) {
+
+        var code = new StringBuilder();
+
+        // get operands
+        code.append(apply(opCond.getOperands().get(0)));
+        code.append(apply(opCond.getOperands().get(1)));
+
+        // apply operation
+        var op = switch (opCond.getCondition().getOperation().getOpType()) {
+            case LTH -> "if_icmplt";
+            case GTH -> "if_icmpgt";
+            case LTE -> "if_icmple";
+            case GTE -> "if_icmpge";
+            case EQ  -> "if_icmpeq";
+            case NEQ -> "if_icmpne";
+            default  -> throw new NotImplementedException(opCond.getCondition().getOperation().getOpType());
+        };
+
+        code.append(op).append(" ").append(opCond.getLabel()).append(NL);
+        stackPop(2);
+
+        return code.toString();
+    }
+
+    private String generateUnaryOp(UnaryOpInstruction unaryOp) {
+
+        var code = new StringBuilder();
+
+        // load values on the left and on the right
+        code.append(apply(unaryOp.getOperand()));
+
+        var typePrefix = types.getTypePrefix(unaryOp.getOperation().getTypeInfo());
+
+        // apply operation
+        var op = switch (unaryOp.getOperation().getOpType()) {
+            case LOGICAL_NOT -> {
+                code.append("ldc 1").append(NL);
+                stackPush(1);
+                yield "xor";
+            }
+            default -> throw new NotImplementedException(unaryOp.getOperation().getOpType());
+        };
+
+        code.append(typePrefix).append(op).append(NL);
+        stackPop(1); // pop 2, push 1 → net -1
+
+        return code.toString();
+    }
 
     private String generateBinaryOp(BinaryOpInstruction binaryOp) {
 
@@ -308,9 +387,14 @@ public class JasminGenerator {
 
 
         var typePrefix = types.getTypePrefix(binaryOp.getOperation().getTypeInfo());
-
+        var isComp = false;
         // apply operation
         var op = switch (binaryOp.getOperation().getOpType()) {
+            case LTH, LTE, GTH, GTE, EQ, NEQ -> {
+                isComp = true;
+                code.append(generateComparison(binaryOp));
+                yield "";
+            }
             case ADD -> "add";
             case SUB -> "sub";
             case MUL -> "mul";
@@ -318,8 +402,40 @@ public class JasminGenerator {
             default -> throw new NotImplementedException(binaryOp.getOperation().getOpType());
         };
 
-        code.append(typePrefix).append(op).append(NL);
-        stackPop(1); // pop 2, push 1 → net -1
+        if (!isComp) {
+            code.append(typePrefix).append(op).append(NL);
+        }
+        stackPop(1);
+
+        return code.toString();
+    }
+
+    private String generateComparison(BinaryOpInstruction binaryOp) {
+        var code = new StringBuilder();
+
+        code.append(apply(binaryOp.getLeftOperand()));
+        code.append(apply(binaryOp.getRightOperand()));
+
+        var trueLabel = "cmp_true_" + labelCounter;
+        var endLabel = "cmp_end_" + labelCounter++;
+
+        var jump = switch (binaryOp.getOperation().getOpType()) {
+            case LTH -> "if_icmplt";
+            case LTE -> "if_icmple";
+            case GTH -> "if_icmpgt";
+            case GTE -> "if_icmpge";
+            case EQ  -> "if_icmpeq";
+            case NEQ -> "if_icmpne";
+            default  -> throw new NotImplementedException(binaryOp.getOperation().getOpType());
+        };
+
+        code.append(jump).append(" ").append(trueLabel).append(NL);
+        code.append("ldc 0").append(NL);
+        code.append("goto ").append(endLabel).append(NL);
+        code.append(trueLabel).append(":").append(NL);
+        code.append("ldc 1").append(NL);
+        code.append(endLabel).append(":").append(NL);
+        stackPop(1);
 
         return code.toString();
     }
