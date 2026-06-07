@@ -86,6 +86,8 @@ public class JasminGenerator {
         generators.put(InvokeSpecialInstruction.class, this::generateInvokeSpecial);
         generators.put(NewInstruction.class, this::generateNew);
         generators.put(ArrayLengthInstruction.class, this::generateLength);
+        generators.put(GetFieldInstruction.class, this::generateGetField);
+        generators.put(PutFieldInstruction.class, this::generatePutField);
     }
 
     private void stackPush(int n) {
@@ -265,8 +267,10 @@ public class JasminGenerator {
             } else {
                 var reg = currentMethod.getVarTable().get(operand.getName());
                 code.append(apply(assign.getRhs()));
-                code.append(types.getStore(reg)).append(NL);
-                stackPop(1);
+                if (!isVoidType(assign.getTypeOfAssign())) {
+                    code.append(types.getStore(reg)).append(NL);
+                    stackPop(1);
+                }
             }
 
 
@@ -530,6 +534,39 @@ public class JasminGenerator {
                     "Not implemented for element type '" +
                             type.toString() + "'");
         };
+    }
+
+    private String generateGetField(GetFieldInstruction inst) {
+        var code = new StringBuilder();
+
+        code.append(apply(inst.getObject()));
+
+        var className = ollirResult.getOllirClass().getClassFullyQualifiedName().replace('.', '/');
+        var fieldName = inst.getField().getName();
+        var fieldDescriptor = types.getTypeDescriptor(inst.getFieldType());
+
+        code.append("getfield ").append(className).append("/").append(fieldName)
+                .append(" ").append(fieldDescriptor).append(NL);
+
+        return code.toString();
+    }
+
+    private String generatePutField(PutFieldInstruction inst) {
+        var code = new StringBuilder();
+
+        code.append(apply(inst.getObject()));
+        code.append(apply(inst.getValue()));
+
+        var className = ollirResult.getOllirClass().getClassFullyQualifiedName().replace('.', '/');
+        var fieldName = inst.getField().getName();
+        var fieldDescriptor = types.getTypeDescriptor(inst.getField().getType());
+
+        code.append("putfield ").append(className).append("/").append(fieldName)
+                .append(" ").append(fieldDescriptor).append(NL);
+
+        stackPop(2);
+
+        return code.toString();
     }
 
     private String generateLength(ArrayLengthInstruction arrayLength) {
