@@ -1,42 +1,28 @@
-# Compiler Project
+# Java-- Compiler
 
-## Participation
+A compiler for Java--, a subset of Java, that generates JVM bytecode. Developed for the Compilers course at FEUP (University of Porto), 2025/2026.
 
-Cláudio Meireles, up202306618 - 25% \
-Leonardo Carvalho, up202307152 - 25% \
-Miguel Pereira, up202304387 - 25% \
-Vasco Vieira, up202307797 - 25%
+## Pipeline
+1. **Parsing:** ANTLR grammar producing an abstract syntax tree
+2. **Symbol table:** imports, class fields, methods, parameters and locals
+3. **Semantic analysis:** type checking of expressions, method calls, arrays and control-flow statements
+4. **Intermediate code (OLLIR):** generation for expressions, conditionals, `while`/`for`/`do-while` loops, arrays and object instantiation, with short-circuit `&&`/`||`
+5. **Optimisations:** constant folding and propagation, dead-code and branch elimination, register allocation
+6. **Code generation:** Jasmin assembly for the JVM (fields, method invocation, object creation)
 
-## Self-Evaluation
+## Tech stack
+Java · ANTLR · Gradle · JUnit
 
-Project: 19 \
-Cláudio Meireles: 19 \
-Leonardo Carvalho: 19 \
-Miguel Pereira: 19 \
-Vasco Vieira: 19
+## Build and run
+```bash
+./gradlew installDist        # build
+./jmm -i=path/to/file.jmm    # parse a file and print its AST
+./gradlew test               # run the test suite (all compiler stages)
+```
+The command-line launcher currently stops after parsing; the later stages (semantic analysis, OLLIR, optimisations and Jasmin) are exercised through the test suite.
 
-## Extensions
+## AI use
+Claude and ChatGPT were used for research and guidance; all code was reviewed and validated by the team.
 
-We have implemented everything that was proposed.
-
-## Declaration of AI Tools Used
-
-The following tools were used:
-
-- Claude: Research / guidance
-- ChatGPT: Research / guidance
-
-[X] All content has been reviewed, understood, validated, and we assume full responsibility for the work in this repository.
-
-# Repository Structure
-
-The base repository has several folders, the main ones are:
-
-- `src`: The source folder for the project, you will work here.
-- `test`: Folder for your own tests.
-- `test-public`: Public tests, similar to the majority of the private tests that will be used for evaluation. **Do not change the contents of this folder.** This folder will be modified by automatic updates during the semester.
-
-The remaining folders are:
-
-- `libs`: Libraries in JAR format, required for the project.
-- `libs-jmm`: Java code that can be imported in your Java-- classes. Contains a `java` folder, with the source code, and a `compiled` folder with the same classes, in compiled format. The build system automatically compiles the files inside the `java` folder and stores them in the `compiled` folder.
+## Authors
+Vasco Vieira · Cláudio Meireles · Leonardo Carvalho · Miguel Pereira
